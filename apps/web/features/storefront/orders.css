@@ -1,0 +1,310 @@
+.dsu-orders .shop-section-heading {
+  margin-bottom: 24px;
+}
+.dsu-orders .shop-section-heading h1 {
+  font-size: clamp(28px, 3vw, 40px);
+}
+.dsu-orders-account {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--shop-muted);
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+.dsu-order-tabs {
+  display: flex;
+  overflow-x: auto;
+  background: white;
+  border: 1px solid var(--shop-line);
+  border-radius: 8px 8px 0 0;
+  scrollbar-width: thin;
+}
+.dsu-order-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  flex: 1 0 auto;
+  min-height: 62px;
+  padding: 16px 18px;
+  color: var(--shop-muted);
+  font-size: 14px;
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dsu-order-tabs button[aria-pressed="true"] {
+  color: var(--shop-accent);
+  border-bottom-color: var(--shop-accent);
+  background: #f2f8fc;
+}
+.dsu-order-tabs button:hover {
+  background: #f2f8fc;
+}
+.dsu-order-tabs button span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 0;
+  padding-inline: 4px;
+  font-size: 11px;
+  border-radius: 20px;
+  background: #e8f1f7;
+  color: var(--shop-accent);
+  font-variant-numeric: tabular-nums;
+}
+.dsu-order-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 18px;
+  margin: 18px 0 24px;
+  background: #edf4f9;
+  border: 1.5px solid var(--shop-input-border);
+  border-radius: 6px;
+  color: var(--shop-muted);
+}
+.dsu-order-search:focus-within {
+  border-color: var(--shop-accent);
+}
+.dsu-order-search input {
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  background: transparent;
+  border: 0;
+  color: var(--shop-ink);
+  font-size: 14px;
+}
+.dsu-orders .shop-order {
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  margin-block: 18px;
+}
+.dsu-orders .shop-order header {
+  padding: 20px 24px;
+  margin: 0;
+}
+.dsu-order-store {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.dsu-orders .shop-order header p {
+  margin-top: 5px;
+  color: var(--shop-muted);
+}
+.dsu-orders .shop-order-status {
+  border: 0;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.dsu-orders .shop-order-status[data-status="CANCELLED"],
+.dsu-orders .shop-order-status[data-status="EXPIRED"] {
+  color: #657784;
+  background: #f0f3f5;
+}
+.dsu-orders .shop-order-status[data-status="COMPLETED"] {
+  color: #256452;
+  background: #ecf6f1;
+}
+.dsu-orders .shop-order-items {
+  margin-inline: 24px;
+  padding: 8px 0;
+  border-bottom: 0;
+}
+.dsu-orders .dsu-order-product {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+}
+.dsu-order-product + .dsu-order-product {
+  border-top: 1px solid var(--shop-line);
+}
+.dsu-order-product .shop-photo {
+  width: 88px;
+  height: 88px;
+  min-height: 0;
+  aspect-ratio: 1;
+  border-radius: 5px;
+}
+.dsu-order-product-copy,
+.dsu-order-product-price {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.dsu-order-product-copy strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.dsu-order-product-copy span,
+.dsu-order-product-price span {
+  color: var(--shop-muted);
+  font-size: 12px;
+}
+.dsu-order-product-price {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dsu-order-product-price strong {
+  font-size: 14px;
+}
+.dsu-orders .shop-order-footer {
+  display: block;
+  margin: 0;
+  padding: 20px 24px;
+  border-top: 1px solid var(--shop-line);
+  background: #f8fbfd;
+}
+.dsu-order-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+}
+.dsu-order-summary > span:last-child {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.dsu-order-summary strong {
+  color: var(--shop-accent);
+  font-size: 25px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dsu-order-method {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--shop-muted);
+}
+.dsu-order-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+.dsu-order-actions .shop-button {
+  min-height: 42px;
+  padding: 11px 18px;
+  font-size: 13px;
+}
+.dsu-order-actions .shop-text-link {
+  gap: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 18px;
+  border: 1px solid var(--shop-line);
+  border-radius: 4px;
+  background: white;
+  font-size: 13px;
+}
+.dsu-orders-account .shop-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.dsu-order-tabs svg,
+.dsu-order-actions svg {
+  flex-shrink: 0;
+}
+.dsu-orders .shop-order-deadline {
+  margin: 0;
+  padding: 12px 24px;
+  border-top: 1px solid var(--shop-line);
+  color: var(--shop-muted);
+  line-height: 1.7;
+  background: #f8fbfd;
+}
+.dsu-orders .shop-order-detail {
+  margin: 0;
+  padding: 24px;
+}
+.dsu-orders .shop-empty {
+  background: white;
+  border: 1px solid var(--shop-line);
+  border-radius: 8px;
+}
+.dsu-orders button:focus-visible {
+  outline: 2px solid var(--shop-accent);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .dsu-orders-account {
+    flex-wrap: wrap;
+  }
+  .dsu-order-tabs button {
+    min-height: 54px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  .dsu-orders .shop-order header {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px;
+  }
+  .dsu-orders .shop-order-items {
+    margin-inline: 16px;
+  }
+  .dsu-orders .dsu-order-product {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .dsu-order-product .shop-photo {
+    width: 64px;
+    height: 64px;
+    grid-row: span 2;
+  }
+  .dsu-order-product-copy strong {
+    font-size: 14px;
+  }
+  .dsu-order-product-price {
+    grid-column: 2;
+    text-align: left;
+    gap: 4px;
+  }
+  .dsu-orders .shop-order-footer,
+  .dsu-orders .shop-order-detail {
+    padding: 16px;
+  }
+  .dsu-orders .shop-order-deadline {
+    padding: 12px 16px;
+  }
+  .dsu-order-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .dsu-order-summary > span:last-child {
+    align-self: flex-end;
+  }
+  .dsu-order-summary strong {
+    font-size: 22px;
+  }
+  .dsu-order-actions {
+    align-items: stretch;
+  }
+  .dsu-order-actions > * {
+    flex: 1 1 160px;
+  }
+  .dsu-order-search input {
+    font-size: 16px;
+  }
+}

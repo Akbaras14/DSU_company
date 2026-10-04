@@ -1,0 +1,151 @@
+.shop.shop-auth {
+  min-height: 100svh;
+  background: #ffffff;
+}
+.shop.shop-auth .shop-main:not(:has(.shop-hero)) {
+  width: min(1040px, calc(100% - 48px));
+  max-width: none;
+  padding: 40px 0;
+  min-height: 100svh;
+  display: grid;
+  align-items: center;
+}
+.shop-auth .shop-login {
+  padding: 0;
+}
+.shop-auth-brand-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+.shop-auth-brand {
+  width: 92px;
+  flex-shrink: 0;
+}
+.shop-auth-brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.shop-auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--shop-muted);
+  font-size: 13px;
+}
+.shop-auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 72px;
+  align-items: center;
+}
+.shop-auth .shop-login-card {
+  padding: 16px 0;
+  max-width: 400px;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.shop-auth .shop-login-header h1 {
+  font-family: inherit;
+  font-size: clamp(28px, 3vw, 36px);
+  line-height: 1.2;
+  letter-spacing: -1px;
+}
+.shop-auth .shop-login-header p {
+  font-size: 15px;
+  line-height: 1.7;
+  margin-top: 16px;
+}
+.shop-auth .shop-field {
+  font-size: 14px;
+}
+.shop-auth .shop-field input {
+  min-height: 48px;
+  background: #ffffff;
+  border-radius: 5px;
+}
+.shop-auth .shop-login-toggle-password {
+  min-height: 46px;
+  cursor: pointer;
+}
+.shop-auth .shop-login-form > .shop-button {
+  min-height: 48px;
+  margin-top: 8px;
+  transition: none;
+  transform: none;
+}
+.shop-auth .shop-login-footer {
+  align-items: flex-start;
+  margin-top: 20px;
+  font-size: 14px;
+}
+.shop-auth-aside {
+  background: #edf4f9;
+  border-radius: 12px;
+  padding: 36px 24px;
+  text-align: center;
+}
+.shop-auth-mascot {
+  position: relative;
+  width: min(320px, 100%);
+  aspect-ratio: 1;
+  margin: 0 auto 24px;
+}
+.shop-auth-mascot img {
+  object-fit: contain;
+}
+.shop-auth .shop-auth-aside h2 {
+  font-size: 30px;
+  line-height: 1.2;
+}
+.shop-auth-aside p {
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+@media (max-width: 900px) {
+  .shop-auth-layout {
+    gap: 36px;
+  }
+}
+@media (max-width: 767px) {
+  .shop.shop-auth .shop-main:not(:has(.shop-hero)) {
+    width: min(440px, calc(100% - 40px));
+    padding: 24px 0 32px;
+    align-items: start;
+  }
+  .shop-auth-brand-row {
+    margin-bottom: 24px;
+    gap: 16px;
+  }
+  .shop-auth-brand {
+    width: 72px;
+  }
+  .shop-auth-back {
+    font-size: 12px;
+  }
+  .shop-auth-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .shop-auth .shop-login-card {
+    max-width: none;
+  }
+  .shop-auth-aside {
+    padding: 24px 20px;
+  }
+  .shop-auth-mascot {
+    width: 160px;
+    margin-bottom: 16px;
+  }
+  .shop-auth .shop-auth-aside h2 {
+    font-size: 25px;
+  }
+}

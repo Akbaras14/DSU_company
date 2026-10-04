@@ -1,0 +1,42 @@
+.mascot {
+  position: relative;
+  width: 140px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  flex-shrink: 0;
+}
+.mascot img {
+  object-fit: contain;
+}
+.compact {
+  width: 80px;
+}
+.large {
+  width: 280px;
+  margin-inline: auto;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+}
+.copy {
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .heading {
+    gap: 16px;
+  }
+  .heading .mascot {
+    width: 88px;
+  }
+  .heading .compact {
+    width: 64px;
+  }
+}
+@media (max-width: 380px) {
+  .heading {
+    flex-wrap: wrap;
+  }
+}

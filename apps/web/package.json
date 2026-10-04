@@ -1,0 +1,17 @@
+{
+  "name": "@dsu/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@dsu/contracts": "*",
+    "cn": "^0.4.0",
+    "framer-motion": "^13.4.6"
+  }
+}

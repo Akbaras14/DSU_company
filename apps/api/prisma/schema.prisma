@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  PETUGAS
+  PELANGGAN
+}
+
+enum OrderStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  PROCESSING
+  READY_FOR_PICKUP
+  SHIPPED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  RELEASED
+  FULFILLED
+}
+
+enum FulfillmentMethod {
+  DELIVERY
+  PICKUP
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  email        String    @unique @db.VarChar(191)
+  name         String    @db.VarChar(100)
+  passwordHash String    @db.VarChar(255)
+  role         Role      @default(PELANGGAN)
+  active       Boolean   @default(true)
+  phone        String    @default("") @db.VarChar(20)
+  address      String    @default("") @db.VarChar(500)
+  provinceId   String    @default("") @db.VarChar(2)
+  regencyId    String    @default("") @db.VarChar(4)
+  districtId   String    @default("") @db.VarChar(7)
+  villageId    String    @default("") @db.VarChar(10)
+  postalCode   String    @default("") @db.VarChar(5)
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+  cart         CartItem[]
+  orders       Order[]
+}
+
+model Session {
+  tokenHash String   @id @db.Char(64)
+  csrfToken String   @db.Char(64)
+  userId    String   @db.VarChar(36)
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Product {
+  id          String      @id @db.VarChar(100)
+  name        String      @db.VarChar(150)
+  category    String      @db.VarChar(100)
+  description String      @db.Text
+  price       Int
+  imageUrl    String?     @db.VarChar(500)
+  published   Boolean     @default(false)
+  batches     Batch[]
+  cart        CartItem[]
+  items       OrderItem[]
+  @@index([published, category])
+}
+
+model Batch {
+  id        String        @id @db.VarChar(100)
+  productId String        @db.VarChar(100)
+  location  String        @db.VarChar(150)
+  physical  Int           @default(0)
+  approved  Int           @default(0)
+  reserved  Int           @default(0)
+  product   Product       @relation(fields: [productId], references: [id])
+  reservations Reservation[]
+  transactions InventoryTransaction[]
+  @@index([productId])
+}
+
+model CartItem {
+  userId    String @db.VarChar(36)
+  productId String @db.VarChar(100)
+  quantity  Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+  @@id([userId, productId])
+  @@index([productId])
+}
+
+model Order {
+  id            String      @id @default(uuid()) @db.VarChar(36)
+  userId        String      @db.VarChar(36)
+  idempotencyKey String      @db.VarChar(100)
+  requestHash    String      @db.Char(64)
+  status        OrderStatus @default(PENDING_CONFIRMATION)
+  total         Int
+  contactName   String      @db.VarChar(100)
+  contactPhone  String      @db.VarChar(20)
+  contactAddress String     @db.VarChar(500)
+  fulfillmentMethod FulfillmentMethod @default(PICKUP)
+  trackingNumber String? @db.VarChar(100)
+  whatsappNumber String     @db.VarChar(20)
+  pickupAddress String      @db.VarChar(500)
+  createdAt     DateTime    @default(now())
+  expiresAt     DateTime
+  updatedAt     DateTime    @updatedAt
+  user          User        @relation(fields: [userId], references: [id])
+  items         OrderItem[]
+  reservations  Reservation[]
+  events        OrderEvent[]
+  @@unique([userId, idempotencyKey])
+  @@index([status, expiresAt])
+  @@index([userId, createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid()) @db.VarChar(36)
+  orderId   String  @db.VarChar(36)
+  productId String  @db.VarChar(100)
+  name      String  @db.VarChar(150)
+  unitPrice Int
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Reservation {
+  id       String @id @default(uuid()) @db.VarChar(36)
+  orderId  String @db.VarChar(36)
+  batchId  String @db.VarChar(100)
+  quantity Int
+  status   ReservationStatus @default(ACTIVE)
+  order    Order @relation(fields: [orderId], references: [id])
+  batch    Batch @relation(fields: [batchId], references: [id])
+  @@unique([orderId, batchId])
+  @@index([batchId, status])
+}
+
+model OrderEvent {
+  id        String      @id @default(uuid()) @db.VarChar(36)
+  orderId   String      @db.VarChar(36)
+  actorId   String      @db.VarChar(36)
+  status    OrderStatus
+  reason    String      @db.VarChar(500)
+  createdAt DateTime    @default(now())
+  order     Order       @relation(fields: [orderId], references: [id])
+  @@index([orderId, createdAt])
+}
+
+model InventoryTransaction {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  reference String   @unique @db.VarChar(191)
+  batchId   String   @db.VarChar(100)
+  actorId   String   @db.VarChar(36)
+  kind      String   @db.VarChar(30)
+  quantity  Int
+  reason    String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+  batch     Batch    @relation(fields: [batchId], references: [id])
+  @@index([batchId, createdAt])
+}
+
+model Province {
+  id        String     @id @db.Char(2)
+  name      String     @db.VarChar(100)
+  regencies Regency[]
+  @@index([name])
+}
+
+model Regency {
+  id         String     @id @db.Char(4)
+  provinceId String     @db.Char(2)
+  name       String     @db.VarChar(150)
+  province   Province   @relation(fields: [provinceId], references: [id])
+  districts  District[]
+  @@index([provinceId, name])
+  @@index([name])
+}
+
+model District {
+  id        String    @id @db.Char(7)
+  regencyId String    @db.Char(4)
+  name      String    @db.VarChar(150)
+  regency   Regency   @relation(fields: [regencyId], references: [id])
+  villages  Village[]
+  @@index([regencyId, name])
+  @@index([name])
+}
+
+model Village {
+  id         String   @id @db.Char(10)
+  districtId String   @db.Char(7)
+  name       String   @db.VarChar(150)
+  district   District @relation(fields: [districtId], references: [id])
+  @@index([districtId, name])
+  @@index([name])
+}

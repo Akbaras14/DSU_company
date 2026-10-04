@@ -1,0 +1,137 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #0c294a75;
+  backdrop-filter: blur(5px);
+}
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  width: min(440px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 32px;
+  background: #fff;
+  border: 1px solid #dce9f2;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px #092b4930;
+  color: #123b61;
+  text-align: center;
+  outline: none;
+}
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: #f0f6fa;
+  border: 0;
+  border-radius: 50%;
+  color: #53738a;
+  cursor: pointer;
+}
+.mascot {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+.eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #246b92;
+}
+.title {
+  margin: 10px 0 12px;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+.description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #607a8d;
+}
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 26px;
+}
+.actions :is(button, a) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 12px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cancel {
+  border: 1px solid #c9dce9;
+  background: #fff;
+  color: #246b92;
+}
+.confirm {
+  border: 1px solid #246b92;
+  background: #246b92;
+  color: #fff;
+}
+.cancel:hover {
+  background: #f2f7fb;
+}
+.confirm:hover {
+  background: #1b5477;
+}
+.popup :is(button, a):focus-visible {
+  outline: 2px solid #246b92;
+  outline-offset: 3px;
+}
+.popup button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.error {
+  margin: 16px 0 0;
+  color: #a52e36;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.indicator {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  color: #246b92;
+}
+.indicator[data-kind="success"] {
+  color: #287858;
+}
+.indicator[data-kind="error"] {
+  color: #b1464d;
+}
+.actions[data-single="true"] {
+  grid-template-columns: 1fr;
+}
+@media (max-width: 380px) {
+  .popup {
+    padding: 28px 20px 22px;
+  }
+  .title {
+    font-size: 25px;
+  }
+  .actions {
+    grid-template-columns: 1fr;
+  }
+}
