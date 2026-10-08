@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -9,34 +9,222 @@ import {
   Sprout,
   ArrowUpRight,
   LogOut,
-  RefreshCw,
-  Clock3,
+  Bell,
   PackageCheck,
-  Search,
   Menu,
   X,
+  Users,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
-import { orderLabels } from "@dsu/contracts";
 import { useShop } from "@/features/storefront/provider";
 import { LogoutDialog } from "@/features/storefront/logout-dialog";
-import { ModalNotice } from "@/components/notification-provider";
 import { DSUMascot } from "@/components/dsu-mascot";
-import { rupiah, localDateTime } from "@/lib/format";
-import type { ShopOrder } from "@/features/storefront/service";
 import "@/features/storefront/storefront.css";
 import "./admin.css";
+import { AdminNotifications, AdminSearch } from "./system";
+import { AdminModal } from "./shared";
 
 const navigation = [
-  { href: "/admin", label: "Ringkasan", icon: LayoutDashboard },
-  { href: "/admin/pesanan", label: "Pesanan", icon: ClipboardList },
-  { href: "/admin/tanaman", label: "Katalog tanaman", icon: Sprout },
+  { href: "/admin", label: "Beranda", icon: LayoutDashboard, group: "" },
+  {
+    href: "/admin/tanaman",
+    label: "Tanaman",
+    icon: Sprout,
+    group: "Pembibitan",
+  },
+  {
+    href: "/admin/kategori",
+    label: "Kategori",
+    icon: Sprout,
+    group: "Pembibitan",
+  },
+  {
+    href: "/admin/batch",
+    label: "Kelompok Tanaman",
+    icon: Sprout,
+    group: "Pembibitan",
+  },
+  {
+    href: "/admin/lokasi",
+    label: "Lokasi Pembibitan",
+    icon: Sprout,
+    group: "Pembibitan",
+  },
+  {
+    href: "/admin/inventory",
+    label: "Persediaan",
+    icon: PackageCheck,
+    group: "Pembibitan",
+  },
+  {
+    href: "/admin/monitoring",
+    label: "Pemantauan Tanaman",
+    icon: ClipboardList,
+    group: "Pemantauan",
+  },
+  {
+    href: "/admin/approval",
+    label: "Persetujuan Siap Jual",
+    icon: ClipboardList,
+    group: "Pemantauan",
+  },
+  {
+    href: "/admin/katalog",
+    label: "Katalog",
+    icon: Sprout,
+    group: "Penjualan",
+  },
+  {
+    href: "/admin/pesanan",
+    label: "Pesanan",
+    icon: ClipboardList,
+    group: "Penjualan",
+  },
+  {
+    href: "/admin/pembayaran",
+    label: "Pembayaran",
+    icon: PackageCheck,
+    group: "Penjualan",
+  },
+  { href: "/admin/petugas", label: "Petugas", icon: Users, group: "Pengguna" },
+  {
+    href: "/admin/pelanggan",
+    label: "Pelanggan",
+    icon: Users,
+    group: "Pengguna",
+  },
+  {
+    href: "/admin/laporan",
+    label: "Laporan",
+    icon: ClipboardList,
+    group: "Laporan",
+  },
+  {
+    href: "/admin/audit",
+    label: "Catatan Aktivitas",
+    icon: ClipboardList,
+    group: "Sistem",
+  },
+  {
+    href: "/admin/pengaturan",
+    label: "Pengaturan",
+    icon: ClipboardList,
+    group: "Sistem",
+  },
 ];
+
+function AdminNotificationBell() {
+  const { adminRequest } = useShop();
+  const pathname = usePathname();
+  const [unread, setUnread] = useState<number | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let active = true;
+    async function refresh() {
+      try {
+        const rows = await adminRequest<{ read: boolean }[]>(
+          "/admin/notifications",
+        );
+        if (active) setUnread(rows.filter((row) => !row.read).length);
+      } catch {
+        // Keep the last known count; the notification modal offers error recovery.
+      }
+    }
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 60000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("admin-notifications-updated", refresh);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("admin-notifications-updated", refresh);
+    };
+  }, [adminRequest, pathname]);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="admin-notification-bell"
+        aria-label={
+          unread ? `Notifikasi, ${unread} belum dibaca` : "Notifikasi"
+        }
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title="Notifikasi"
+      >
+        <Bell size={21} aria-hidden="true" />
+        {Boolean(unread) && (
+          <span className="admin-notification-badge" aria-hidden="true">
+            {unread! > 99 ? "99+" : unread}
+          </span>
+        )}
+      </button>
+      {open && (
+        <AdminModal title="Notifikasi" onClose={() => setOpen(false)}>
+          <AdminNotifications onNavigate={() => setOpen(false)} />
+        </AdminModal>
+      )}
+    </>
+  );
+}
+
+function AdminNavigation({
+  pathname,
+  onNavigate,
+}: {
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const link = ({ href, label, icon: Icon }: (typeof navigation)[number]) => (
+    <Link
+      key={href}
+      href={href}
+      aria-current={pathname === href ? "page" : undefined}
+      onClick={onNavigate}
+    >
+      <Icon size={18} aria-hidden="true" />
+      {label}
+    </Link>
+  );
+  return [...new Set(navigation.map((item) => item.group))].map((group) => {
+    const items = navigation.filter((item) => item.group === group);
+    if (items.length === 1) return link(items[0]);
+    const active = items.some((item) => item.href === pathname),
+      Icon = items[0].icon;
+    return (
+      <details
+        key={group}
+        className="admin-submenu"
+        open={active}
+        data-active={active}
+      >
+        <summary>
+          <Icon size={18} aria-hidden="true" />
+          <span>{group}</span>
+          <span className="admin-submenu-caret" aria-hidden="true">
+            <ChevronRight className="admin-submenu-collapsed" size={16} />
+            <ChevronDown className="admin-submenu-expanded" size={16} />
+          </span>
+        </summary>
+        <div className="admin-submenu-items">{items.map(link)}</div>
+      </details>
+    );
+  });
+}
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, loading, error, refresh, logout } = useShop();
   const pathname = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
+  const drawer = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (menu) drawer.current?.showModal();
+    else drawer.current?.close();
+  }, [menu]);
   const [logoutOpen, setLogoutOpen] = useState(false);
   if (loading || error || user?.role !== "ADMIN")
     return (
@@ -75,14 +263,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </main>
     );
   const title =
-    navigation.find((item) => item.href === pathname)?.label || "Administrasi";
+    navigation.find((item) => item.href === pathname)?.label ||
+    (pathname === "/admin/notifikasi" ? "Notifikasi" : "Administrasi");
   return (
     <div className="shop admin-shell">
-      <aside className="admin-sidebar" data-open={menu}>
+      <aside className="admin-sidebar">
         <Link
           href="/admin"
           className="admin-brand"
-          aria-label="DSU — dashboard admin"
+          aria-label="DSU — beranda admin"
         >
           <Image
             src="/images/logo/dsu_logo.svg"
@@ -94,22 +283,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </Link>
         <span className="admin-nav-label">ADMINISTRASI</span>
         <nav aria-label="Navigasi admin">
-          {navigation.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={pathname === href ? "page" : undefined}
-              onClick={() => setMenu(false)}
-            >
-              <Icon size={19} aria-hidden="true" />
-              {label}
-            </Link>
-          ))}
+          <AdminNavigation
+            pathname={pathname}
+            onNavigate={() => setMenu(false)}
+          />
         </nav>
         <div className="admin-sidebar-bottom">
           <Link href="/">
             <ArrowUpRight size={18} />
-            Lihat website
+            Lihat situs
           </Link>
           <button onClick={() => setLogoutOpen(true)}>
             <LogOut size={18} />
@@ -117,6 +299,34 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </aside>
+      <dialog
+        ref={drawer}
+        className="admin-mobile-drawer"
+        aria-label="Navigasi admin"
+        onClose={() => setMenu(false)}
+      >
+        <button
+          className="shop-button secondary"
+          onClick={() => setMenu(false)}
+        >
+          Tutup navigasi admin
+        </button>
+        <nav aria-label="Menu admin seluler">
+          <AdminNavigation
+            pathname={pathname}
+            onNavigate={() => setMenu(false)}
+          />
+        </nav>
+        <button
+          className="shop-button secondary"
+          onClick={() => {
+            setMenu(false);
+            setLogoutOpen(true);
+          }}
+        >
+          Keluar
+        </button>
+      </dialog>
       <div className="admin-workspace">
         <header className="admin-topbar">
           <button
@@ -131,16 +341,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
             Administrasi <span>/</span> <strong>{title}</strong>
           </span>
           <div className="admin-user">
+            <AdminNotificationBell />
             <span className="admin-avatar">
               {user.name.slice(0, 1).toUpperCase()}
             </span>
             <div>
               <strong>{user.name}</strong>
-              <small>Administrator</small>
+              <small>Pengelola</small>
             </div>
           </div>
         </header>
         <main id="main" className="admin-main">
+          <AdminSearch />
           {children}
         </main>
         <footer className="admin-footer">
@@ -156,290 +368,5 @@ export function AdminShell({ children }: { children: ReactNode }) {
         }}
       />
     </div>
-  );
-}
-
-export function AdminDashboard() {
-  const { user, state, adminRequest } = useShop();
-  const [orders, setOrders] = useState<ShopOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let active = true;
-    adminRequest<ShopOrder[]>("/admin/orders")
-      .then((data) => {
-        if (active) {
-          setOrders(data);
-          setError("");
-        }
-      })
-      .catch((cause: unknown) => {
-        if (active)
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Pesanan belum dapat dimuat.",
-          );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [adminRequest, attempt]);
-  const awaiting = orders.filter(
-    (order) => order.status === "PENDING_CONFIRMATION",
-  );
-  const activeOrders = orders.filter((order) =>
-    ["CONFIRMED", "PROCESSING", "READY_FOR_PICKUP", "SHIPPED"].includes(
-      order.status,
-    ),
-  );
-  const completed = orders.filter((order) => order.status === "COMPLETED");
-  const recent = [...orders]
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .slice(0, 5);
-  const metrics = [
-    {
-      label: "Menunggu konfirmasi",
-      value: awaiting.length,
-      icon: Clock3,
-      note: "Perlu ditindaklanjuti",
-    },
-    {
-      label: "Pesanan aktif",
-      value: activeOrders.length,
-      icon: ClipboardList,
-      note: "Dikonfirmasi hingga siap diambil",
-    },
-    {
-      label: "Pesanan selesai",
-      value: completed.length,
-      icon: PackageCheck,
-      note: "Seluruh pesanan yang diselesaikan",
-    },
-    {
-      label: "Tanaman tersedia",
-      value: state.products.filter((p) => p.available > 0).length,
-      icon: Sprout,
-      note: "Jenis tanaman di katalog",
-    },
-  ];
-  return (
-    <>
-      <div className="admin-page-heading">
-        <div>
-          <span className="admin-kicker">DASHBOARD</span>
-          <h1>Ringkasan usaha</h1>
-          <p>
-            Selamat datang, {user?.name}. Pantau pesanan dan ketersediaan
-            tanaman Anda.
-          </p>
-        </div>
-        <button
-          className="shop-button secondary"
-          onClick={() => {
-            setLoading(true);
-            setAttempt((n) => n + 1);
-          }}
-          disabled={loading}
-        >
-          <RefreshCw size={16} />
-          Perbarui data
-        </button>
-      </div>
-      {error && <ModalNotice message={error} />}
-      <div className="admin-metrics" aria-busy={loading}>
-        {metrics.map(({ label, value, icon: Icon, note }) => (
-          <article key={label}>
-            <div>
-              <span>{label}</span>
-              <Icon size={20} />
-            </div>
-            <strong>{loading || error ? "—" : value}</strong>
-            <small>{note}</small>
-          </article>
-        ))}
-      </div>
-      <div className="admin-overview-grid">
-        <section className="admin-panel">
-          <div className="admin-panel-heading">
-            <div>
-              <h2>Pesanan terbaru</h2>
-              <p>Lima pesanan terakhir yang masuk.</p>
-            </div>
-            <Link href="/admin/pesanan">
-              Lihat semua <ArrowUpRight size={16} />
-            </Link>
-          </div>
-          {loading ? (
-            <p className="admin-empty" role="status">
-              Memuat pesanan…
-            </p>
-          ) : error ? (
-            <p className="admin-empty">
-              Data pesanan belum dapat ditampilkan. Klik Perbarui data untuk
-              mencoba lagi.
-            </p>
-          ) : !recent.length ? (
-            <p className="admin-empty">Belum ada pesanan masuk.</p>
-          ) : (
-            <div className="admin-table-scroll">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Pesanan / pelanggan</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.map((order) => (
-                    <tr key={order.id}>
-                      <td>
-                        <Link href="/admin/pesanan">
-                          #{order.id.slice(0, 8).toUpperCase()}
-                        </Link>
-                        <strong>{order.contact.name}</strong>
-                        <small>{localDateTime(order.createdAt)}</small>
-                      </td>
-                      <td>{rupiah(order.total)}</td>
-                      <td>
-                        <span
-                          className="admin-status"
-                          data-status={order.status}
-                        >
-                          {orderLabels[order.status]}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-        <aside className="admin-panel admin-attention">
-          <DSUMascot file="maskot_one.webp" />
-          <span className="admin-kicker">TINDAK LANJUT</span>
-          <h2>
-            {loading || error
-              ? "Pantau pesanan Anda"
-              : awaiting.length
-                ? `${awaiting.length} pesanan menunggu`
-                : "Semua sudah ditinjau"}
-          </h2>
-          <p>
-            Periksa percakapan WhatsApp pelanggan sebelum mengonfirmasi pesanan.
-          </p>
-          <Link href="/admin/pesanan" className="shop-button">
-            Kelola pesanan <ArrowUpRight size={16} />
-          </Link>
-        </aside>
-      </div>
-      <section className="admin-summary">
-        <div>
-          <span>Nilai pesanan selesai</span>
-          <strong>
-            {loading || error
-              ? "—"
-              : rupiah(completed.reduce((sum, order) => sum + order.total, 0))}
-          </strong>
-        </div>
-        <p>
-          Total nilai pesanan berstatus selesai, di luar ongkir. Status pesanan
-          tidak menunjukkan verifikasi pembayaran.
-        </p>
-      </section>
-    </>
-  );
-}
-
-export function AdminCatalog() {
-  const { state, refresh } = useShop();
-  const [query, setQuery] = useState("");
-  const products = state.products.filter((product) =>
-    `${product.id} ${product.name} ${product.category}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
-  return (
-    <>
-      <div className="admin-page-heading">
-        <div>
-          <span className="admin-kicker">KATALOG</span>
-          <h1>Katalog tanaman</h1>
-          <p>Harga dan stok tersedia yang ditampilkan kepada pelanggan.</p>
-        </div>
-        <DSUMascot file="maskot_four.webp" compact />
-      </div>
-      <section className="admin-panel">
-        <div className="admin-panel-heading">
-          <label className="admin-search">
-            <Search size={18} />
-            <input
-              aria-label="Cari tanaman"
-              placeholder="Cari nama atau kategori tanaman"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <button
-            className="shop-button secondary"
-            onClick={() => void refresh()}
-          >
-            <RefreshCw size={16} />
-            Perbarui
-          </button>
-        </div>
-        <div className="admin-table-scroll">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Tanaman</th>
-                <th>Kategori</th>
-                <th>Harga</th>
-                <th>Stok tersedia</th>
-                <th>Katalog</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <strong>{p.name}</strong>
-                    <small>{p.id}</small>
-                  </td>
-                  <td>{p.category}</td>
-                  <td>{rupiah(p.price)}</td>
-                  <td>
-                    <strong>{p.available}</strong>
-                    <small>tanaman</small>
-                  </td>
-                  <td>
-                    <Link href={`/katalog/${p.id}`}>
-                      Lihat tanaman <ArrowUpRight size={14} />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!products.length && (
-          <p className="admin-empty">
-            {query
-              ? "Tidak ada tanaman yang sesuai pencarian."
-              : "Belum ada tanaman di katalog."}
-          </p>
-        )}
-      </section>
-      <p className="admin-note">
-        Stok tersedia sudah memperhitungkan kesiapan jual dan reservasi pesanan.
-        Halaman ini menampilkan tanaman yang telah diterbitkan.
-      </p>
-    </>
   );
 }

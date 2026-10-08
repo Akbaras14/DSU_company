@@ -1,6 +1,250 @@
+import { plantAgeDays } from "@dsu/contracts";
+
+export const plantAge = (plantedAt: string | null, asOf?: string) => {
+  const days = plantAgeDays(plantedAt, asOf ? new Date(asOf) : undefined);
+  return days === null
+    ? "Belum tersedia"
+    : `${days.toLocaleString("id-ID")} hari`;
+};
 export const rupiah = (value: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value);
 export const localDate = (value: string) =>
-  new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date(value));
+  new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(value));
 export const localDateTime = (value: string) =>
-  new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(value)) + " WIB";
+  new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(value)) + " WIB";
+
+const labels: Record<string, string> = {
+  ADMIN: "Pengelola",
+  PETUGAS: "Petugas",
+  PELANGGAN: "Pelanggan",
+  DRAFT: "Draf",
+  MONITORING: "Dalam pemantauan",
+  READY_REVIEW: "Menunggu pemeriksaan",
+  READY_FOR_SALE: "Siap jual",
+  PARTIALLY_SOLD: "Terjual sebagian",
+  SOLD_OUT: "Habis",
+  ARCHIVED: "Diarsipkan",
+  HEALTHY: "Sehat",
+  NEEDS_ATTENTION: "Perlu perhatian",
+  CRITICAL: "Kritis",
+  PENDING: "Menunggu persetujuan",
+  APPROVED: "Disetujui",
+  REJECTED: "Ditolak",
+  WAITING: "Menunggu pemeriksaan",
+  VERIFIED: "Terverifikasi",
+  UNPAID: "Belum dibayar",
+  PENDING_REVIEW: "Menunggu pemeriksaan",
+  PENDING_PAYMENT: "Menunggu pembayaran",
+  WAITING_VERIFICATION: "Menunggu verifikasi",
+  PAID: "Lunas",
+  READY_TO_SHIP: "Siap dikirim",
+  PAYMENT_REJECTED: "Pembayaran ditolak",
+  PENDING_CONFIRMATION: "Menunggu konfirmasi",
+  CONFIRMED: "Dikonfirmasi",
+  PROCESSING: "Diproses",
+  READY_FOR_PICKUP: "Siap diambil",
+  SHIPPED: "Dikirim",
+  COMPLETED: "Selesai",
+  CANCELLED: "Dibatalkan",
+  EXPIRED: "Kedaluwarsa",
+  PAYMENT_REVIEW: "Pembayaran diperiksa",
+  PUBLISHED: "Diterbitkan",
+  UNPUBLISHED: "Belum diterbitkan",
+  ACTIVE: "Aktif",
+  RELEASED: "Dilepas",
+  FULFILLED: "Dipenuhi",
+  DELIVERY: "Pengiriman",
+  PICKUP: "Pengambilan",
+  INITIAL_STOCK: "Stok awal",
+  RECEIPT: "Penerimaan",
+  STOCK_IN: "Stok masuk",
+  ADJUSTMENT: "Penyesuaian",
+  DAMAGED: "Rusak",
+  DEAD: "Mati",
+  RETURN: "Pengembalian",
+  SALE: "Penjualan",
+  SOLD: "Terjual",
+  RESERVE: "Pemesanan",
+  RESERVATION: "Pemesanan",
+  RELEASE: "Pelepasan",
+  inventory: "Persediaan",
+  monitoring: "Pemantauan",
+  sales: "Penjualan",
+  movements: "Pergerakan stok",
+  batch: "Kelompok tanaman",
+  plant: "Tanaman",
+  location: "Lokasi",
+  plantedAt: "Tanggal tanam",
+  ageDays: "Umur (hari)",
+  status: "Status",
+  total: "Total",
+  available: "Tersedia",
+  ready: "Siap jual",
+  reserved: "Dipesan",
+  sold: "Terjual",
+  damaged: "Rusak",
+  dead: "Mati",
+  minimum: "Batas minimum",
+  date: "Tanggal",
+  staff: "Petugas",
+  health: "Kesehatan",
+  condition: "Kondisi",
+  samples: "Jumlah sampel",
+  notes: "Catatan",
+  readiness: "Kesiapan jual",
+  kind: "Jenis",
+  quantity: "Jumlah",
+  before: "Sebelum",
+  after: "Sesudah",
+  reason: "Alasan",
+  order: "Pesanan",
+  customer: "Pelanggan",
+  payment: "Pembayaran",
+  plants: "Jumlah tanaman",
+  revenue: "Pendapatan",
+  shipping: "Ongkos kirim",
+  products: "Tanaman",
+  Product: "Tanaman",
+  Batch: "Kelompok tanaman",
+  Observation: "Pengamatan",
+  Category: "Kategori",
+  NurseryLocation: "Lokasi pembibitan",
+  User: "Pengguna",
+  Order: "Pesanan",
+  Payment: "Pembayaran",
+  Settings: "Pengaturan",
+  ReadinessApproval: "Persetujuan kesiapan jual",
+  CREATE_PLANT: "Tambah tanaman",
+  UPDATE_PLANT: "Ubah tanaman",
+  CREATE_CATEGORY: "Tambah kategori",
+  UPDATE_CATEGORY: "Ubah kategori",
+  CREATE_LOCATION: "Tambah lokasi",
+  UPDATE_LOCATION: "Ubah lokasi",
+  CREATE_BATCH: "Tambah kelompok tanaman",
+  UPDATE_BATCH: "Ubah kelompok tanaman",
+  STOCK_ADJUSTMENT: "Penyesuaian stok",
+  APPROVE_READINESS: "Setujui kesiapan jual",
+  REJECT_READINESS: "Tolak kesiapan jual",
+  PUBLISH_CATALOG: "Terbitkan katalog",
+  UNPUBLISH_CATALOG: "Batalkan penerbitan katalog",
+  UPDATE_USER: "Ubah pengguna",
+  CHANGE_PASSWORD: "Ganti kata sandi",
+  RESET_PASSWORD: "Reset kata sandi",
+  RECOVER_ADMIN_PASSWORD: "Pemulihan kata sandi admin",
+  UPDATE_SETTINGS: "Ubah pengaturan",
+  UPDATE_SHIPPING_COST: "Ubah ongkos kirim",
+  LOW_STOCK: "Stok rendah",
+  PAYMENT_RECEIVED: "Pembayaran diterima",
+  APPROVAL_PENDING: "Menunggu persetujuan",
+  ORDER_NEW: "Pesanan baru",
+  PLANT_CRITICAL: "Tanaman kritis",
+  MONITORING_OVERDUE: "Pemantauan terlambat",
+  id: "Kode",
+  name: "Nama",
+  email: "Surel",
+  role: "Peran",
+  active: "Aktif",
+  description: "Keterangan",
+  category: "Kategori",
+  categoryId: "Kode kategori",
+  productId: "Kode tanaman",
+  batchId: "Kode kelompok",
+  locationId: "Kode lokasi",
+  assignedTo: "Petugas penanggung jawab",
+  enteredAt: "Tanggal masuk",
+  initialQuantity: "Jumlah awal",
+  physical: "Stok fisik",
+  approved: "Stok disetujui",
+  publishedStock: "Stok ditawarkan",
+  published: "Diterbitkan",
+  price: "Harga",
+  unit: "Satuan",
+  variety: "Varietas",
+  minimumStock: "Batas minimum stok",
+  parameters: "Parameter",
+  imageUrl: "Alamat gambar",
+  capacity: "Kapasitas",
+  createdAt: "Waktu dibuat",
+  updatedAt: "Waktu diubah",
+  observedAt: "Waktu pengamatan",
+  observedBy: "Petugas pengamat",
+  method: "Metode",
+  sampleCount: "Jumlah sampel",
+  measurements: "Pengukuran",
+  parameter: "Parameter",
+  value: "Nilai",
+  sampleNumber: "Nomor sampel",
+  photoUrl: "Alamat foto",
+  correctionOf: "Koreksi atas",
+  proposedQuantity: "Jumlah diajukan",
+  approvedQuantity: "Jumlah disetujui",
+  reviewedBy: "Pemeriksa",
+  reviewedAt: "Waktu pemeriksaan",
+  orderId: "Kode pesanan",
+  amount: "Nominal",
+  proofUrl: "Alamat bukti",
+  phone: "Telepon",
+  address: "Alamat",
+  companyName: "Nama perusahaan",
+  logoUrl: "Alamat logo",
+  paymentTimeoutHours: "Batas pembayaran (jam)",
+  monitoringIntervalDays: "Jarak pemantauan (hari)",
+  allowCustomerCancellation: "Izinkan pembatalan pelanggan",
+  shippingCost: "Ongkos kirim",
+  discountPrice: "Harga diskon",
+  reference: "Referensi",
+  beforeQuantity: "Jumlah sebelumnya",
+  afterQuantity: "Jumlah sesudahnya",
+  actorId: "Kode pengguna",
+  CREATE: "Tambah",
+  UPDATE: "Ubah",
+  DELETE: "Hapus",
+  DEACTIVATE: "Nonaktifkan",
+  ASSIGN: "Tugaskan",
+  REVIEW: "Periksa",
+  APPROVE: "Setujui",
+  REJECT: "Tolak",
+  CREATE_DUMMY_DATA: "Tambah data contoh",
+};
+export function indonesianLabel(value: unknown): string {
+  if (value == null) return "—";
+  const text = String(value);
+  if (labels[text]) return labels[text];
+  if (/^[A-Z][A-Z_]+$/.test(text))
+    return text
+      .split("_")
+      .map((part) => labels[part] ?? "Aktivitas")
+      .join(" ");
+  return text;
+}
+
+export function indonesianAudit(value: unknown): string {
+  function translate(item: unknown): unknown {
+    if (item == null) return "Belum tersedia";
+    if (typeof item === "boolean") return item ? "Ya" : "Tidak";
+    if (typeof item === "string") return indonesianLabel(item);
+    if (Array.isArray(item)) return item.map(translate);
+    if (typeof item === "object")
+      return Object.fromEntries(
+        Object.entries(item).map(([key, entry]) => [
+          indonesianLabel(key),
+          translate(entry),
+        ]),
+      );
+    return item;
+  }
+  return JSON.stringify(translate(value), null, 2);
+}

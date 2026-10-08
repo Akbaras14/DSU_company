@@ -4,6 +4,7 @@ import { Prisma, type OrderStatus } from "@prisma/client";
 import { db, lockCustomer, transaction, type Transaction } from "./db.js";
 import { config } from "./config.js";
 import { HttpError } from "./http.js";
+import { audit } from "./audit.js";
 import { productIdSchema, quantitySchema, stockAvailable } from "./catalog.js";
 
 export const contactSchema = z.object({
@@ -67,6 +68,7 @@ export const checkoutSchema = z
   });
 const includeOrder = {
   items: true,
+  payment: true,
   events: { orderBy: { createdAt: "asc" as const } },
 };
 type FullOrder = Prisma.OrderGetPayload<{ include: typeof includeOrder }>;
@@ -77,7 +79,7 @@ export function presentOrder(order: FullOrder) {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
-  }).format(order.total);
+  }).format(order.total + order.shippingCost);
   const fulfillment =
     order.fulfillmentMethod === "DELIVERY"
       ? `Kirim ke: ${order.contactAddress}`
@@ -102,6 +104,8 @@ export function presentOrder(order: FullOrder) {
     },
     fulfillmentMethod: order.fulfillmentMethod,
     trackingNumber: order.trackingNumber,
+    shippingCost: order.shippingCost,
+    payment: order.payment,
     pickupAddress: order.pickupAddress,
     whatsappUrl: `https://wa.me/${order.whatsappNumber}?text=${encodeURIComponent(text)}`,
     events: order.events.map(({ status, reason, createdAt }) => ({
@@ -168,7 +172,8 @@ export async function checkout(
             (line) =>
               line.productId === row.productId &&
               line.quantity === row.quantity &&
-              line.unitPrice === row.product.price,
+              line.unitPrice ===
+                (row.product.discountPrice ?? row.product.price),
           ),
       )
     )
@@ -184,10 +189,10 @@ export async function checkout(
         row.quantity > stockAvailable(row.product.batches)
       )
         throw new HttpError(409, `Stok ${row.product.name} tidak mencukupi.`);
-      total += row.quantity * row.product.price;
+      total += row.quantity * (row.product.discountPrice ?? row.product.price);
       let remaining = row.quantity;
       for (const batch of row.product.batches) {
-        const quantity = Math.min(remaining, batch.approved - batch.reserved);
+        const quantity = Math.min(remaining, stockAvailable([batch]));
         if (quantity <= 0) continue;
         const updated = await tx.batch.updateMany({
           where: {
@@ -195,11 +200,28 @@ export async function checkout(
             reserved: batch.reserved,
             approved: batch.approved,
           },
-          data: { reserved: { increment: quantity } },
+          data: {
+            reserved: { increment: quantity },
+            ...(batch.publishedStock !== null
+              ? { publishedStock: { decrement: quantity } }
+              : {}),
+          },
         });
         if (updated.count !== 1)
           throw new HttpError(409, "Stok berubah. Silakan ulangi checkout.");
         allocations.push({ batchId: batch.id, quantity });
+        await tx.inventoryTransaction.create({
+          data: {
+            reference: `RESERVE:${input.key}:${batch.id}`,
+            batchId: batch.id,
+            actorId: userId,
+            kind: "RESERVATION",
+            quantity,
+            beforeQuantity: batch.reserved,
+            afterQuantity: batch.reserved + quantity,
+            reason: `Reservasi checkout ${input.key}`,
+          },
+        });
         remaining -= quantity;
         if (!remaining) break;
       }
@@ -207,6 +229,7 @@ export async function checkout(
     }
     if (!Number.isSafeInteger(total) || total > 2147483647)
       throw new HttpError(422, "Nilai pesanan melebihi batas transaksi.");
+    const settings = await tx.systemSettings.findUnique({ where: { id: 1 } });
     const order = await tx.order.create({
       data: {
         userId,
@@ -221,43 +244,64 @@ export async function checkout(
             : "Ambil di tempat pembibitan",
         fulfillmentMethod: input.fulfillmentMethod,
         whatsappNumber: config.WHATSAPP_NUMBER,
-        pickupAddress: config.PICKUP_ADDRESS,
-        expiresAt: new Date(Date.now() + config.RESERVATION_HOURS * 3600000),
+        pickupAddress: settings?.address || config.PICKUP_ADDRESS,
+        status: "PENDING_PAYMENT",
+        expiresAt: new Date(
+          Date.now() +
+            (settings?.paymentTimeoutHours ?? config.RESERVATION_HOURS) *
+              3600000,
+        ),
         items: {
           create: rows.map(({ product, quantity }) => ({
             productId: product.id,
             name: product.name,
-            unitPrice: product.price,
+            unitPrice: product.discountPrice ?? product.price,
             quantity,
           })),
         },
         reservations: { create: allocations },
         events: {
           create: {
-            status: "PENDING_CONFIRMATION",
+            status: "PENDING_PAYMENT",
             actorId: userId,
             reason:
-              "Pesanan dibuat; menunggu konfirmasi admin melalui WhatsApp.",
+              "Pesanan dibuat; stok direservasi sampai pembayaran diverifikasi.",
           },
         },
       },
       include: includeOrder,
     });
     await tx.cartItem.deleteMany({ where: { userId } });
+    await audit(
+      userId,
+      "NEW_ORDER",
+      "Order",
+      order.id,
+      null,
+      { status: order.status, total: order.total },
+      "Checkout dan reservasi stok",
+      tx,
+      "PELANGGAN",
+    );
     return order;
   });
   return presentOrder(result);
 }
 
 export const transitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  PENDING_PAYMENT: ["CANCELLED", "EXPIRED"],
+  WAITING_VERIFICATION: ["CANCELLED"],
+  PAYMENT_REJECTED: ["CANCELLED", "EXPIRED"],
+  PAID: ["PROCESSING"],
+  READY_TO_SHIP: ["SHIPPED"],
   PENDING_CONFIRMATION: ["CONFIRMED", "CANCELLED", "EXPIRED"],
   CONFIRMED: ["PROCESSING", "CANCELLED"],
-  PROCESSING: ["READY_FOR_PICKUP", "SHIPPED", "CANCELLED"],
+  PROCESSING: ["READY_FOR_PICKUP", "READY_TO_SHIP", "SHIPPED"],
   READY_FOR_PICKUP: ["COMPLETED", "CANCELLED"],
   SHIPPED: ["COMPLETED"],
 };
 
-async function closeReservations(
+export async function closeReservations(
   tx: Transaction,
   orderId: string,
   actorId: string,
@@ -281,8 +325,9 @@ async function closeReservations(
           ? {
               physical: { decrement: entry.quantity },
               approved: { decrement: entry.quantity },
+              sold: { increment: entry.quantity },
             }
-          : {}),
+          : { publishedStock: { increment: entry.quantity } }),
       },
     });
     if (changed.count !== 1)
@@ -290,16 +335,23 @@ async function closeReservations(
         409,
         "Stok perlu direkonsiliasi sebelum pesanan diproses.",
       );
+    await tx.inventoryTransaction.create({
+      data: {
+        reference: `${fulfill ? "FULFILL" : "RELEASE"}:${entry.id}`,
+        batchId: entry.batchId,
+        actorId,
+        kind: fulfill ? "SALE" : "RESERVATION_RELEASE",
+        quantity: entry.quantity,
+        reason: `${fulfill ? "Pembayaran diverifikasi" : "Reservasi dilepas"}: ${orderId}`,
+      },
+    });
+    const batch = await tx.batch.findUniqueOrThrow({
+      where: { id: entry.batchId },
+    });
     if (fulfill)
-      await tx.inventoryTransaction.create({
-        data: {
-          reference: `FULFILL:${entry.id}`,
-          batchId: entry.batchId,
-          actorId,
-          kind: "FULFILLMENT",
-          quantity: entry.quantity,
-          reason: `Pengambilan pesanan ${orderId}`,
-        },
+      await tx.batch.update({
+        where: { id: batch.id },
+        data: { status: batch.physical === 0 ? "SOLD_OUT" : "PARTIALLY_SOLD" },
       });
   }
   await tx.reservation.updateMany({
@@ -326,18 +378,47 @@ export async function transitionOrder(
     if (!current || (customer && current.userId !== actorId))
       throw new HttpError(404, "Pesanan tidak ditemukan.");
     if (current.status === status) return current;
+    if (status === "CANCELLED" && current.payment?.status === "VERIFIED") throw new HttpError(409, "Pesanan yang telah dibayar memerlukan proses retur sebelum pembatalan.");
     if (
       customer &&
-      (status !== "CANCELLED" || current.status !== "PENDING_CONFIRMATION")
+      (status !== "CANCELLED" ||
+        ![
+          "PENDING_CONFIRMATION",
+          "PENDING_PAYMENT",
+          "PAYMENT_REJECTED",
+        ].includes(current.status))
     )
       throw new HttpError(
         409,
         "Hubungi admin untuk membatalkan pesanan yang sudah dikonfirmasi.",
       );
+    if (customer) {
+      const settings = await tx.systemSettings.findUnique({ where: { id: 1 } });
+      if (settings && !settings.allowCustomerCancellation)
+        throw new HttpError(
+          403,
+          "Pembatalan pelanggan dinonaktifkan; hubungi admin.",
+        );
+    }
+    if (
+      [
+        "PROCESSING",
+        "READY_TO_SHIP",
+        "SHIPPED",
+        "READY_FOR_PICKUP",
+        "COMPLETED",
+      ].includes(status) &&
+      current.payment?.status !== "VERIFIED"
+    )
+      throw new HttpError(
+        409,
+        "Pembayaran harus diverifikasi sebelum pesanan diproses.",
+      );
     if (!transitions[current.status]?.includes(status))
       throw new HttpError(409, "Perubahan status pesanan tidak diizinkan.");
     if (
-      (status === "SHIPPED" && current.fulfillmentMethod !== "DELIVERY") ||
+      (["SHIPPED", "READY_TO_SHIP"].includes(status) &&
+        current.fulfillmentMethod !== "DELIVERY") ||
       (status === "READY_FOR_PICKUP" &&
         current.fulfillmentMethod === "DELIVERY")
     )
@@ -363,7 +444,7 @@ export async function transitionOrder(
       throw new HttpError(409, "Reservasi sudah kedaluwarsa.");
     if (["CANCELLED", "EXPIRED", "COMPLETED"].includes(status))
       await closeReservations(tx, id, actorId, status === "COMPLETED");
-    return tx.order.update({
+    const result = await tx.order.update({
       where: { id },
       data: {
         status,
@@ -374,12 +455,29 @@ export async function transitionOrder(
       },
       include: includeOrder,
     });
+    await audit(
+      actorId,
+      "ORDER_STATUS",
+      "Order",
+      id,
+      { status: current.status },
+      { status },
+      reason,
+      tx,
+      customer ? "PELANGGAN" : "ADMIN",
+    );
+    return result;
   });
   return presentOrder(order);
 }
 export async function expireOrders() {
   const stale = await db.order.findMany({
-    where: { status: "PENDING_CONFIRMATION", expiresAt: { lte: new Date() } },
+    where: {
+      status: {
+        in: ["PENDING_CONFIRMATION", "PENDING_PAYMENT", "PAYMENT_REJECTED"],
+      },
+      expiresAt: { lte: new Date() },
+    },
     select: { id: true },
     take: 100,
   });

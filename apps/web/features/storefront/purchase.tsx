@@ -46,6 +46,7 @@ import {
 } from "./delivery-address";
 import "./orders.css";
 import "./checkout.css";
+import { CustomerPayment } from "./payment";
 const orderTabIcons: Record<string, LucideIcon> = {
   all: ClipboardList,
   confirmation: Clock3,
@@ -56,6 +57,8 @@ const orderTabIcons: Record<string, LucideIcon> = {
   cancelled: CircleX,
 };
 const orderStatusIcons: Record<OrderStatus, LucideIcon> = {
+  WAITING_VERIFICATION: Clock3,
+  READY_TO_SHIP: Truck,
   PENDING_CONFIRMATION: Clock3,
   CONFIRMED: CircleCheck,
   PENDING_PAYMENT: WalletCards,
@@ -282,6 +285,7 @@ export function CartContent() {
                 <button
                   disabled={pending}
                   aria-label={`Hapus ${item.name}`}
+                  data-destructive="true"
                   onClick={() => void action(item.productId)}
                 >
                   <Trash2 size={16} /> Hapus
@@ -727,6 +731,7 @@ export function OrdersContent() {
         "CONFIRMED",
         "PENDING_PAYMENT",
         "PAYMENT_REVIEW",
+        "WAITING_VERIFICATION",
         "PAYMENT_REJECTED",
       ],
     },
@@ -734,7 +739,7 @@ export function OrdersContent() {
     {
       id: "ready",
       label: "Dikirim / siap diambil",
-      statuses: ["READY_FOR_PICKUP", "SHIPPED"],
+      statuses: ["READY_FOR_PICKUP", "READY_TO_SHIP", "SHIPPED"],
     },
     { id: "completed", label: "Selesai", statuses: ["COMPLETED"] },
     {
@@ -816,7 +821,7 @@ export function OrdersContent() {
           Ubah profil akun
         </Link>
       </div>
-      <nav className="dsu-order-tabs" aria-label="Filter status pesanan">
+      <nav className="dsu-order-tabs" aria-label="Penyaring status pesanan">
         {tabs.map((tab) => {
           const Icon = orderTabIcons[tab.id];
           const count = state.orders.filter(
@@ -934,7 +939,10 @@ export function OrdersContent() {
                     : "Ambil di pembibitan"}
                 </span>
                 <span>
-                  Total pesanan <strong>{rupiah(order.total)}</strong>
+                  Total pesanan{" "}
+                  <strong>
+                    {rupiah(order.total + (order.shippingCost ?? 0))}
+                  </strong>
                 </span>
               </div>
               <div className="dsu-order-actions">
@@ -948,7 +956,11 @@ export function OrdersContent() {
                     rel="noreferrer"
                   >
                     <MessageCircle size={18} />
-                    {order.status === "PENDING_CONFIRMATION"
+                    {[
+                      "PENDING_CONFIRMATION",
+                      "PENDING_PAYMENT",
+                      "PAYMENT_REJECTED",
+                    ].includes(order.status)
                       ? "Konfirmasi via WhatsApp"
                       : "Hubungi admin"}
                   </a>
@@ -970,7 +982,11 @@ export function OrdersContent() {
                 </button>
               </div>
             </div>
-            {order.status === "PENDING_CONFIRMATION" && (
+            {[
+              "PENDING_CONFIRMATION",
+              "PENDING_PAYMENT",
+              "PAYMENT_REJECTED",
+            ].includes(order.status) && (
               <p className="shop-order-deadline">
                 Konfirmasi sebelum {localDateTime(order.expiresAt)}. Membuka
                 WhatsApp tidak mengubah status otomatis.
@@ -978,6 +994,7 @@ export function OrdersContent() {
             )}
             {active === order.id && (
               <section className="shop-order-detail">
+                <CustomerPayment order={order} />
                 <p>
                   <strong>Nomor lengkap:</strong> {order.id}
                 </p>
@@ -1019,7 +1036,11 @@ export function OrdersContent() {
                     </li>
                   ))}
                 </ol>
-                {order.status === "PENDING_CONFIRMATION" && (
+                {[
+                  "PENDING_CONFIRMATION",
+                  "PENDING_PAYMENT",
+                  "PAYMENT_REJECTED",
+                ].includes(order.status) && (
                   <div className="shop-cancel">
                     <label className="shop-field">
                       Alasan pembatalan

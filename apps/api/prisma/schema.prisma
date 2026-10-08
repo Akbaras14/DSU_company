@@ -14,6 +14,11 @@ enum Role {
 }
 
 enum OrderStatus {
+  PENDING_PAYMENT
+  WAITING_VERIFICATION
+  PAID
+  READY_TO_SHIP
+  PAYMENT_REJECTED
   PENDING_CONFIRMATION
   CONFIRMED
   PROCESSING
@@ -22,6 +27,38 @@ enum OrderStatus {
   COMPLETED
   CANCELLED
   EXPIRED
+}
+
+enum BatchStatus {
+  DRAFT
+  MONITORING
+  READY_REVIEW
+  READY_FOR_SALE
+  PARTIALLY_SOLD
+  SOLD_OUT
+  REJECTED
+  ARCHIVED
+}
+enum HealthStatus {
+  HEALTHY
+  NEEDS_ATTENTION
+  CRITICAL
+}
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+enum PaymentStatus {
+  WAITING
+  VERIFIED
+  REJECTED
+}
+enum CatalogStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+  SOLD_OUT
 }
 
 enum ReservationStatus {
@@ -53,6 +90,8 @@ model User {
   sessions     Session[]
   cart         CartItem[]
   orders       Order[]
+  assignedBatches Batch[]
+  observations Observation[]
 }
 
 model Session {
@@ -73,6 +112,17 @@ model Product {
   price       Int
   imageUrl    String?     @db.VarChar(500)
   published   Boolean     @default(false)
+  active Boolean @default(true)
+  variety String @default("") @db.VarChar(100)
+  unit String @default("tanaman") @db.VarChar(30)
+  parameters Json?
+  minimumStock Int @default(5)
+  discountPrice Int?
+  featured Boolean @default(false)
+  catalogStatus CatalogStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   batches     Batch[]
   cart        CartItem[]
   items       OrderItem[]
@@ -86,10 +136,46 @@ model Batch {
   physical  Int           @default(0)
   approved  Int           @default(0)
   reserved  Int           @default(0)
+  initialQuantity Int @default(0)
+  sold Int @default(0)
+  damaged Int @default(0)
+  dead Int @default(0)
+  publishedStock Int?
+  status BatchStatus @default(MONITORING)
+  notes String @default("") @db.VarChar(1000)
+  enteredAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  approvals ReadinessApproval[]
+  assignedTo String?      @db.VarChar(36)
+  plantedAt DateTime?     @db.Date
+  assignee User?          @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  observations Observation[]
   product   Product       @relation(fields: [productId], references: [id])
   reservations Reservation[]
   transactions InventoryTransaction[]
   @@index([productId])
+  @@index([assignedTo])
+}
+
+model Observation {
+  id String @id @default(uuid()) @db.VarChar(36)
+  batchId String @db.VarChar(100)
+  observedBy String @db.VarChar(36)
+  observedAt DateTime @default(now())
+  method String @db.VarChar(100)
+  sampleCount Int
+  measurements Json
+  condition String @db.VarChar(100)
+  notes String @db.VarChar(1000)
+  health HealthStatus @default(HEALTHY)
+  photoUrl String? @db.VarChar(500)
+  correctionOf String? @db.VarChar(36)
+  approvals ReadinessApproval[]
+  batch Batch @relation(fields: [batchId], references: [id])
+  observer User @relation(fields: [observedBy], references: [id])
+  @@index([batchId, observedAt])
+  @@index([observedBy])
 }
 
 model CartItem {
@@ -107,13 +193,15 @@ model Order {
   userId        String      @db.VarChar(36)
   idempotencyKey String      @db.VarChar(100)
   requestHash    String      @db.Char(64)
-  status        OrderStatus @default(PENDING_CONFIRMATION)
+  status        OrderStatus @default(PENDING_PAYMENT)
   total         Int
   contactName   String      @db.VarChar(100)
   contactPhone  String      @db.VarChar(20)
   contactAddress String     @db.VarChar(500)
   fulfillmentMethod FulfillmentMethod @default(PICKUP)
   trackingNumber String? @db.VarChar(100)
+  shippingCost Int @default(0)
+  payment Payment?
   whatsappNumber String     @db.VarChar(20)
   pickupAddress String      @db.VarChar(500)
   createdAt     DateTime    @default(now())
@@ -172,9 +260,84 @@ model InventoryTransaction {
   kind      String   @db.VarChar(30)
   quantity  Int
   reason    String   @db.VarChar(500)
+  beforeQuantity Int?
+  afterQuantity Int?
   createdAt DateTime @default(now())
   batch     Batch    @relation(fields: [batchId], references: [id])
   @@index([batchId, createdAt])
+}
+
+model Category {
+  id String @id @default(uuid()) @db.VarChar(36)
+  name String @unique @db.VarChar(100)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+model NurseryLocation {
+  id String @id @db.VarChar(100)
+  name String @unique @db.VarChar(150)
+  description String @default("") @db.VarChar(1000)
+  capacity Int @default(0)
+  active Boolean @default(true)
+}
+model ReadinessApproval {
+  id String @id @default(uuid()) @db.VarChar(36)
+  batchId String @db.VarChar(100)
+  observationId String @db.VarChar(36)
+  requestedBy String @db.VarChar(36)
+  quantity Int
+  status ApprovalStatus @default(PENDING)
+  reason String @default("") @db.VarChar(1000)
+  reviewedBy String? @db.VarChar(36)
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  batch Batch @relation(fields: [batchId], references: [id])
+  observation Observation @relation(fields: [observationId], references: [id])
+  @@index([batchId, status])
+}
+model Payment {
+  id String @id @default(uuid()) @db.VarChar(36)
+  orderId String @unique @db.VarChar(36)
+  amount Int
+  method String @db.VarChar(100)
+  proofUrl String @db.VarChar(500)
+  status PaymentStatus @default(WAITING)
+  reason String @default("") @db.VarChar(1000)
+  paidAt DateTime @default(now())
+  verifiedBy String? @db.VarChar(36)
+  reviewedAt DateTime?
+  order Order @relation(fields: [orderId], references: [id])
+}
+model AuditLog {
+  id String @id @default(uuid()) @db.VarChar(36)
+  actorId String @db.VarChar(36)
+  role Role
+  action String @db.VarChar(100)
+  entity String @db.VarChar(100)
+  entityId String @db.VarChar(100)
+  oldValue Json?
+  newValue Json?
+  description String @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
+model NotificationRead {
+  userId String @db.VarChar(36)
+  notificationKey String @db.VarChar(150)
+  readAt DateTime @default(now())
+  @@id([userId, notificationKey])
+}
+model SystemSettings {
+  id Int @id @default(1)
+  companyName String @default("CV. Delta Sinergi Utama") @db.VarChar(150)
+  logoUrl String @default("/images/logo/dsu_logo.svg") @db.VarChar(500)
+  address String @default("") @db.VarChar(500)
+  phone String @default("") @db.VarChar(30)
+  email String @default("") @db.VarChar(191)
+  minimumStock Int @default(5)
+  paymentTimeoutHours Int @default(24)
+  monitoringIntervalDays Int @default(7)
+  allowCustomerCancellation Boolean @default(true)
 }
 
 model Province {

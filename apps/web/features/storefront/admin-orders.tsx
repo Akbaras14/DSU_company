@@ -7,19 +7,24 @@ import { useEffect, useState } from "react";
 import { orderLabels, type OrderStatus } from "@dsu/contracts";
 import { rupiah, localDateTime } from "@/lib/format";
 import { useShop } from "./provider";
-import { MascotHeading } from "@/components/dsu-mascot";
+import { Heading } from "@/features/admin/shared";
 import type { ShopOrder } from "./service";
-import { Search, RefreshCw } from "lucide-react";
+import { Search } from "lucide-react";
 const nextStatuses: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  PENDING_PAYMENT: ["CANCELLED"],
+  WAITING_VERIFICATION: ["CANCELLED"],
+  PAYMENT_REJECTED: ["CANCELLED"],
+  PAID: ["PROCESSING"],
+  READY_TO_SHIP: ["SHIPPED"],
   PENDING_CONFIRMATION: ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["PROCESSING", "CANCELLED"],
+  CONFIRMED: ["CANCELLED"],
   PROCESSING: ["READY_FOR_PICKUP", "CANCELLED"],
   READY_FOR_PICKUP: ["COMPLETED", "CANCELLED"],
   SHIPPED: ["COMPLETED"],
 };
 function allowedStatuses(order: ShopOrder) {
   return order.status === "PROCESSING" && order.fulfillmentMethod === "DELIVERY"
-    ? (["SHIPPED", "CANCELLED"] as OrderStatus[])
+    ? (["READY_TO_SHIP"] as OrderStatus[])
     : nextStatuses[order.status];
 }
 export function AdminOrders() {
@@ -104,7 +109,7 @@ export function AdminOrders() {
         message:
           status === "COMPLETED"
             ? "Stok fisik akan dikeluarkan."
-            : "Pastikan percakapan WhatsApp sudah diverifikasi.",
+            : "Pastikan pembayaran telah diverifikasi dan perubahan sesuai proses operasional.",
         confirmLabel: "Ya, ubah status",
       }))
     )
@@ -138,27 +143,10 @@ export function AdminOrders() {
   }
   return (
     <section className="shop-section">
-      <div className="shop-section-heading">
-        <MascotHeading file="maskot_one.webp" compact>
-          <span className="shop-eyebrow">ADMINISTRASI</span>
-          <h1>Kelola pesanan</h1>
-          <p>
-            Verifikasi percakapan WhatsApp sebelum menyetujui pesanan. Status
-            dikonfirmasi tidak berarti pembayaran telah lunas.
-          </p>
-        </MascotHeading>
-        <button
-          className="shop-button secondary"
-          disabled={loading || pending}
-          onClick={() => {
-            setLoading(true);
-            setAttempt((n) => n + 1);
-          }}
-        >
-          <RefreshCw size={16} />
-          Perbarui
-        </button>
-      </div>
+      <Heading
+        title="Kelola pesanan"
+        description="Pembayaran harus diverifikasi sebelum memproses pesanan. Verifikasi bukti melalui menu Pembayaran."
+      />
       <div className="admin-order-filters">
         <label className="admin-search">
           <Search size={18} />
@@ -173,7 +161,7 @@ export function AdminOrders() {
           />
         </label>
         <select
-          aria-label="Filter status pesanan"
+          aria-label="Penyaring status pesanan"
           value={filter}
           onChange={(event) => {
             setFilter(event.target.value);
@@ -236,7 +224,10 @@ export function AdminOrders() {
               ))}
             </div>
             <div className="shop-order-footer">
-              <strong>Total {rupiah(order.total)}</strong>
+              <strong>
+                Total {rupiah(order.total + (order.shippingCost ?? 0))} · Ongkir{" "}
+                {rupiah(order.shippingCost ?? 0)}
+              </strong>
               <a
                 className="shop-text-link"
                 target="_blank"
@@ -259,6 +250,84 @@ export function AdminOrders() {
                 </button>
               )}
             </div>
+            {order.fulfillmentMethod === "DELIVERY" &&
+              [
+                "PENDING_PAYMENT",
+                "PAYMENT_REJECTED",
+                "PENDING_CONFIRMATION",
+              ].includes(order.status) && (
+                <form
+                  className="shop-admin-action"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const form = new FormData(event.currentTarget);
+                    if (
+                      !(await confirm({
+                        title: "Ubah ongkir?",
+                        message:
+                          "Tagihan pelanggan akan mengikuti ongkir baru.",
+                      }))
+                    )
+                      return;
+                    setPending(true);
+                    try {
+                      await adminRequest(
+                        `/admin/orders/${order.id}/shipping`,
+                        {
+                          shippingCost: Number(form.get("shippingCost")),
+                          reason: String(form.get("reason")),
+                        },
+                        "PATCH",
+                      );
+                      setAttempt((value) => value + 1);
+                      notify({
+                        kind: "success",
+                        message: "Ongkir berhasil diperbarui.",
+                      });
+                    } catch (cause) {
+                      notify({
+                        kind: "error",
+                        message:
+                          cause instanceof Error
+                            ? cause.message
+                            : "Ongkir gagal diperbarui.",
+                      });
+                    } finally {
+                      setPending(false);
+                    }
+                  }}
+                >
+                  <label className="shop-field">
+                    Ongkir (Rp)
+                    <input
+                      name="shippingCost"
+                      type="number"
+                      min={0}
+                      max={2147483647}
+                      required
+                      defaultValue={order.shippingCost ?? 0}
+                      disabled={pending}
+                    />
+                  </label>
+                  <label className="shop-field">
+                    Alasan perubahan ongkir
+                    <input
+                      name="reason"
+                      minLength={5}
+                      maxLength={500}
+                      required
+                      disabled={pending}
+                    />
+                  </label>
+                  <button
+                    className="shop-button secondary"
+                    disabled={pending}
+                    type="submit"
+                  >
+                    Simpan ongkir
+                  </button>
+                </form>
+              )}
             {selected === order.id && (
               <div className="shop-admin-action">
                 <label className="shop-field">

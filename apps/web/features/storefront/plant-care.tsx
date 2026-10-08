@@ -14,7 +14,7 @@ const topics = [
   ["repotting", "Ganti pot"],
   ["rutinitas", "Checklist"],
   ["masalah", "Masalah umum"],
-  ["faq", "FAQ"],
+  ["faq", "Tanya jawab"],
 ] as const;
 
 const basics = [
@@ -404,7 +404,7 @@ export function PlantCareContent() {
             className="care-reset"
             onClick={() => setChecked([])}
           >
-            Reset checklist
+            Bersihkan checklist
           </button>
         </div>
         <div className="care-checklist">

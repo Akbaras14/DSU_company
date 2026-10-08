@@ -9,6 +9,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "node --env-file=../../.env ../../node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma",
     "admin:create": "tsx src/manage.ts admin",
+    "admin:reset-password": "tsx src/manage.ts reset-admin",
     "catalog:import": "tsx src/manage.ts catalog",
     "locations:import": "tsx src/import-locations.ts",
     "test": "tsx --test tests/*.test.ts"

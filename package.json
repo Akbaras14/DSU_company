@@ -19,11 +19,15 @@
     "db:generate": "npm run db:generate --workspace @dsu/api",
     "db:migrate": "node --env-file=.env node_modules/prisma/build/index.js migrate deploy --schema apps/api/prisma/schema.prisma",
     "admin:create": "npm run admin:create --workspace @dsu/api",
+    "admin:reset-password": "npm run admin:reset-password --workspace @dsu/api",
     "catalog:import": "npm run catalog:import --workspace @dsu/api",
     "locations:import": "npm run locations:import --workspace @dsu/api",
     "test:api": "npm run test --workspace @dsu/api",
     "test:frontend": "playwright test --config playwright.config.ts",
-    "test:customer": "playwright test --config playwright.customer.config.ts"
+    "test:customer": "playwright test --config playwright.customer.config.ts",
+    "backup:data": "node scripts/backup.mjs create",
+    "restore:data": "node scripts/backup.mjs restore",
+    "test:backup": "node --test scripts/backup.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

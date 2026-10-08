@@ -74,6 +74,8 @@ export interface Reservation {
   status: "ACTIVE" | "RELEASED" | "FULFILLED";
 }
 export type OrderStatus =
+  | "WAITING_VERIFICATION"
+  | "READY_TO_SHIP"
   | "PENDING_CONFIRMATION"
   | "CONFIRMED"
   | "PENDING_PAYMENT"
@@ -96,8 +98,25 @@ export interface Batch extends Stock {
   species: string;
   category: string;
   location: string;
-  plantedAt: string;
-  assignedTo: string;
+  plantedAt: string | null;
+  assignedTo: string | null;
+}
+
+/** Calendar days since planting, using the nursery's Asia/Jakarta date. */
+export function plantAgeDays(
+  plantedAt: string | null,
+  asOf = new Date(),
+): number | null {
+  if (!plantedAt) return null;
+  const planted = new Date(plantedAt);
+  if (!Number.isFinite(planted.getTime()) || !Number.isFinite(asOf.getTime()))
+    return null;
+  const day = (date: Date) =>
+    Date.parse(
+      new Date(date.getTime() + 7 * 3600000).toISOString().slice(0, 10),
+    );
+  const days = Math.round((day(asOf) - day(planted)) / 86400000);
+  return days < 0 ? null : days;
 }
 export interface Observation {
   id: string;
@@ -114,6 +133,9 @@ export interface Observation {
   }[];
   condition: string;
   notes: string;
+  health?: "HEALTHY" | "NEEDS_ATTENTION" | "CRITICAL";
+  photoUrl?: string | null;
+  correctionOf?: string | null;
 }
 export interface Product {
   id: string;
@@ -144,6 +166,8 @@ export function availableStock(stock: Stock): number {
   return Math.max(0, stock.approved - stock.reserved);
 }
 export const orderLabels: Record<OrderStatus, string> = {
+  WAITING_VERIFICATION: "Menunggu verifikasi pembayaran",
+  READY_TO_SHIP: "Siap dikirim",
   PENDING_CONFIRMATION: "Menunggu konfirmasi",
   CONFIRMED: "Dikonfirmasi",
   PENDING_PAYMENT: "Menunggu pembayaran",

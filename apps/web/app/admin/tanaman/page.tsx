@@ -1,4 +1,4 @@
-import { AdminCatalog } from "@/features/admin/admin";
+import { AdminPlants } from "@/features/admin/resources";
 export default function Page() {
-  return <AdminCatalog />;
+  return <AdminPlants />;
 }

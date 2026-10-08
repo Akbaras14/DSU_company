@@ -1,0 +1,3 @@
+ALTER TABLE `InventoryTransaction` DROP CONSTRAINT `InventoryTransaction_quantity_check`;
+ALTER TABLE `InventoryTransaction` ADD CONSTRAINT `InventoryTransaction_quantity_check` CHECK (`quantity` >= -1000000 AND `quantity` <= 1000000);
+UPDATE `Batch` b SET b.sold = (SELECT COALESCE(SUM(t.quantity), 0) FROM `InventoryTransaction` t WHERE t.batchId = b.id AND t.kind = 'FULFILLMENT'), b.initialQuantity = b.physical + b.damaged + b.dead + (SELECT COALESCE(SUM(t.quantity), 0) FROM `InventoryTransaction` t WHERE t.batchId = b.id AND t.kind = 'FULFILLMENT') WHERE EXISTS (SELECT 1 FROM `InventoryTransaction` t WHERE t.batchId = b.id AND t.kind = 'FULFILLMENT');

@@ -17,6 +17,36 @@ Website berjalan di `http://localhost:3000`, API di `http://localhost:4000`.
 
 Isi `ADMIN_NAME`, `ADMIN_EMAIL`, dan `ADMIN_PASSWORD` di `.env`, lalu jalankan `npm run admin:create`. Password minimal 10 karakter. Login melalui `/login`; akun admin diarahkan ke `/admin`. Tidak ada kredensial admin bawaan di repository.
 
+## Pemulihan dan perubahan kata sandi
+
+Admin dapat mengganti kata sandinya dari **Pengaturan → Ganti kata sandi**. Untuk membantu petugas atau pelanggan yang lupa kata sandi, gunakan **Reset kata sandi** pada akun terkait. Masukkan kata sandi admin saat ini, kata sandi baru minimal 10 karakter, dan konfirmasinya; sampaikan kata sandi baru kepada pemilik akun secara pribadi setelah memverifikasi identitasnya. Reset tidak mengaktifkan akun yang sudah dinonaktifkan.
+
+Jika admin tidak bisa login, operator server dapat mengisi `ADMIN_EMAIL` dan `ADMIN_PASSWORD` dengan kata sandi baru melalui environment, lalu menjalankan `npm run admin:reset-password`. Perintah hanya memperbarui admin aktif yang sudah ada. Hapus nilai kata sandi sementara dari konfigurasi setelah digunakan. Jangan menaruh kata sandi dalam argumen perintah atau Git.
+
+Semua perubahan mencabut seluruh sesi akun dan dicatat dalam audit tanpa menyimpan kata sandi. Reset melalui tautan email belum tersedia karena belum ada layanan pengirim email.
+
+## Portal petugas
+
+Admin dapat membuat akun petugas serta melihat penugasan dan riwayat pengamatannya melalui `/admin/petugas`. Password awal minimal 10 karakter. Email harus unik; akun yang dibuat selalu memiliki role `PETUGAS`.
+
+Untuk memberi tugas, klik **Pantau** pada petugas, pilih batch yang belum ditugaskan, lalu klik **Berikan penugasan**. Penugasan dapat dibatalkan dari tabel batch petugas. Pemindahan batch antarpetugas tersedia di `/admin/batch`.
+
+Login menggunakan akun ber-role `PETUGAS` melalui `/login`. Admin menugaskan batch di `/admin/batch` atau `/admin/petugas`. Petugas hanya melihat batch tugasnya dan dapat mencatat metode, kondisi, tinggi sampel dalam cm, serta catatan melalui detail batch. Pengamatan tersimpan di MySQL dan tidak mengubah stok siap jual. Batch tanpa penugasan tidak muncul di portal petugas. Terapkan `npm run db:migrate` dan `npm run db:generate` setelah pembaruan ini.
+
+## Modul admin
+
+Implementasi mengikuti alur `admin.md`: master tanaman/kategori/lokasi ? batch ? monitoring petugas ? pengajuan siap jual ? approval admin ? katalog ? checkout dan reservasi ? verifikasi pembayaran ? fulfillment. Modul tersedia melalui sidebar `/admin`, termasuk inventory, laporan, audit, notifikasi, pelanggan, dan pengaturan. Data tersimpan di MySQL; hak akses dan validasi diperiksa oleh API.
+
+Pengamatan tidak langsung menambah stok siap jual. Admin harus menyetujui pengajuan sebelum mempublikasikan stok batch. Pembayaran pelanggan menggunakan foto bukti; verifikasi admin memindahkan reservasi ke stok terjual tepat satu kali. Ongkir dapat diatur sebelum bukti pembayaran diajukan. Riwayat transaksi dan audit dipertahankan saat tanaman, lokasi, kategori, atau akun dinonaktifkan.
+
+Ekspor Excel menggunakan SpreadsheetML (`.xml`, dapat dibuka di Excel). Ekspor PDF membuka dialog cetak browser; pilih **Save as PDF**. Foto disimpan di `apps/api/uploads`; foto monitoring dan bukti pembayaran hanya dapat diakses pemilik dan admin. Cadangkan folder ini bersama database.
+
+Harga katalog berlaku per jenis tanaman untuk seluruh batch pada listing yang sama. Persediaan fisik, stok siap jual, dan stok publik dibedakan. Pencarian dan pagination tabel dilakukan di browser, sesuai skala nursery lokal; pindahkan ke API jika data membesar.
+
+Umur tanaman dihitung dalam hari dari **Tanggal tanam** pada tambah/edit batch, berdasarkan tanggal kalender Asia/Jakarta. Pada master tanaman, beberapa batch ditampilkan sebagai rentang umur. Monitoring menampilkan umur saat pengamatan; laporan inventory menyertakan tanggal tanam dan umur dalam hari. Tanggal tanam kosong tidak dianggap sebagai umur nol.
+
+Prioritas P0 dan P1 dari `admin.md` tersedia, termasuk lokasi nursery dan pengaturan sistem. P2 sudah mencakup pencarian global; advanced analytics, advanced export, dan dashboard customization tetap menjadi pengembangan berikutnya sesuai prioritas dokumen.
+
 ## Struktur
 
 - `apps/web`: Next.js dan React.

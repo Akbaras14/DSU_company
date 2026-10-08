@@ -5,7 +5,9 @@ export const db = new PrismaClient();
 export type Transaction = Prisma.TransactionClient;
 
 /** Retries MySQL serialization conflicts; a failed attempt rolls back completely. */
-export async function transaction<T>(work: (tx: Transaction) => Promise<T>): Promise<T> {
+export async function transaction<T>(
+  work: (tx: Transaction) => Promise<T>,
+): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await db.$transaction(work, {
@@ -13,7 +15,11 @@ export async function transaction<T>(work: (tx: Transaction) => Promise<T>): Pro
         timeout: 15000,
       });
     } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2034" || attempt >= 3)
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2034" ||
+        attempt >= 3
+      )
         throw error;
       await new Promise((resolve) => setTimeout(resolve, 30 * (attempt + 1)));
     }

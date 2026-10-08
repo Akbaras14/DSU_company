@@ -49,7 +49,7 @@ test("public routes render without JavaScript, hydration or missing-image errors
   expect(errors).toEqual([]);
 });
 
-test("admin dashboard filters orders, updates status and fits desktop and mobile", async ({
+test("admin beranda filters orders, updates status and fits desktop and mobile", async ({
   page,
 }) => {
   const user = {
@@ -64,7 +64,7 @@ test("admin dashboard filters orders, updates status and fits desktop and mobile
     id: "11111111-1111-4111-8111-111111111111",
     createdAt: "2026-10-04T07:00:00Z",
     expiresAt: "2026-10-05T07:00:00Z",
-    status: "PENDING_CONFIRMATION",
+    status: "PAID",
     items: [
       {
         productId: "browser-monstera",
@@ -99,23 +99,50 @@ test("admin dashboard filters orders, updates status and fits desktop and mobile
     if (input.trackingNumber) order.trackingNumber = input.trackingNumber;
     await route.fulfill({ json: order });
   });
+  await page.route("**/api/v1/admin/dashboard?*", (route) =>
+    route.fulfill({
+      json: {
+        metrics: { plants: 1, newOrders: 0 },
+        notifications: [],
+        sales: [],
+        activity: [],
+      },
+    }),
+  );
+  await page.route("**/api/v1/admin/batches", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/admin/products", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: "browser-monstera",
+          name: "Monstera pengujian",
+          category: "Hias",
+          active: true,
+          price: 85000,
+          discountPrice: null,
+          published: true,
+          batches: [],
+        },
+      ],
+    }),
+  );
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/admin");
-  await expect(
-    page.getByRole("heading", { name: "Ringkasan usaha" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "1 pesanan menunggu" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Pelanggan admin test", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Beranda" })).toBeVisible();
+  await expect(page.getByText("Pesanan baru", { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({
     path: "docs/testing/admin-desktop.png",
     fullPage: true,
   });
+  await page
+    .getByRole("navigation", { name: "Navigasi admin", exact: true })
+    .locator("summary")
+    .filter({ hasText: "Penjualan" })
+    .click();
   await page.getByRole("link", { name: "Pesanan", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Kelola pesanan" }),
@@ -132,7 +159,7 @@ test("admin dashboard filters orders, updates status and fits desktop and mobile
   await page.getByRole("button", { name: "Simpan status" }).click();
   await page.getByRole("button", { name: "Ya, ubah status" }).click();
   await acknowledge(page, "Berhasil!");
-  await expect(page.locator(".shop-order-status")).toHaveText("Dikonfirmasi");
+  await expect(page.locator(".shop-order-status")).toHaveText("Diproses");
   await page.getByRole("button", { name: "Tindak lanjuti" }).click();
   await page
     .getByLabel("Catatan hasil konfirmasi")
@@ -159,18 +186,16 @@ test("admin dashboard filters orders, updates status and fits desktop and mobile
     page.getByText("DSU-RESI-123456", { exact: false }),
   ).toBeVisible();
   await page
-    .getByLabel("Filter status pesanan")
+    .getByLabel("Penyaring status pesanan")
     .selectOption("PENDING_CONFIRMATION");
   await expect(
     page.getByText("Tidak ada pesanan yang sesuai pencarian."),
   ).toBeVisible();
-  await page
-    .getByRole("link", { name: "Katalog tanaman", exact: true })
-    .click();
+  await page.getByRole("link", { name: "Katalog", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Katalog tanaman", exact: true }),
+    page.getByRole("heading", { name: "Katalog", exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Cari tanaman").fill("browser-monstera");
+  await page.getByLabel("Cari data").fill("browser-monstera");
   await expect(
     page.getByText("Monstera pengujian", { exact: true }),
   ).toBeVisible();
@@ -184,10 +209,8 @@ test("admin dashboard filters orders, updates status and fits desktop and mobile
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Buka navigasi admin" }).click();
-  await page.getByRole("link", { name: "Ringkasan", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Ringkasan usaha" }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: "Beranda", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Beranda" })).toBeVisible();
   await page.screenshot({
     path: "docs/testing/admin-mobile.png",
     fullPage: true,
@@ -225,19 +248,19 @@ test("login failure uses a responsive mascot modal and supports dismissal", asyn
   await page.route("**/api/v1/auth/login", (route) =>
     route.fulfill({
       status: 401,
-      json: { error: "Email atau kata sandi tidak sesuai." },
+      json: { error: "Surel atau kata sandi tidak sesuai." },
     }),
   );
   await page.goto("/login");
   await page
-    .getByLabel("Alamat email", { exact: true })
+    .getByLabel("Alamat surel", { exact: true })
     .fill("test@example.com");
   await page
     .getByLabel("Kata sandi", { exact: true })
     .fill("Incorrect-password-2026!");
   await page.getByRole("button", { name: "Masuk", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Belum berhasil" });
-  await expect(dialog).toContainText("Email atau kata sandi tidak sesuai.");
+  await expect(dialog).toContainText("Surel atau kata sandi tidak sesuai.");
   await expect(dialog.locator('img[src*="maskot"]')).toBeVisible();
   for (const width of [1440, 390, 280]) {
     await page.setViewportSize({ width, height: 900 });
@@ -261,7 +284,7 @@ test("customer registers, persists a cart, checks out to WhatsApp, and cancels o
   await page.getByRole("button", { name: "Belum punya akun? Daftar" }).click();
   await page.getByLabel("Nama lengkap").fill("Customer browser");
   await page
-    .getByLabel("Alamat email", { exact: true })
+    .getByLabel("Alamat surel", { exact: true })
     .fill(`customer-${Date.now()}@browser.example.test`);
   await page
     .getByLabel("Kata sandi", { exact: true })
@@ -439,7 +462,7 @@ test("customer registers, persists a cart, checks out to WhatsApp, and cancels o
     .getByRole("button", { name: "Batal", exact: true })
     .click();
   await expect(page.locator(".shop-order-status")).toHaveText(
-    "Menunggu konfirmasi",
+    "Menunggu pembayaran",
   );
   await page.getByRole("button", { name: "Batalkan pesanan" }).click();
   await cancelDialog.getByRole("button", { name: "Ya, batalkan" }).click();

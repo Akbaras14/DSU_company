@@ -93,7 +93,7 @@ export function LoginContent() {
               </label>
             )}
             <label className="shop-field">
-              Alamat email
+              Alamat surel
               <input
                 type="email"
                 autoComplete="email"

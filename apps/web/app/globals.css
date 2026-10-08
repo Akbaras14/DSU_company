@@ -54,6 +54,19 @@
 * {
   box-sizing: border-box;
 }
+:root :is(button, a)[data-destructive="true"] {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+:root :is(button, a)[data-destructive="true"]:hover:not(:disabled) {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+:root :is(button, a)[data-destructive="true"]:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 3px;
+}
 body {
   margin: 0;
   background: var(--canvas);
@@ -131,6 +144,17 @@ form :is(input, select, textarea):not(:disabled):hover {
 }
 form :is(input, select, textarea):focus-visible {
   border-color: var(--brand-600);
+}
+.detail-panel form label {
+  display: grid;
+  gap: 8px;
+}
+.detail-panel form fieldset {
+  min-width: 0;
+}
+.detail-panel form :is(input, textarea) {
+  width: 100%;
+  min-width: 0;
 }
 .muted,
 p {

@@ -31,6 +31,8 @@ export interface ShopOrder {
   status: OrderStatus;
   items: BasketLine[];
   total: number;
+  shippingCost?: number;
+  payment?: { id: string; status: "WAITING" | "VERIFIED" | "REJECTED"; amount: number; method: string; proofUrl: string; reason: string } | null;
   contact: CustomerContact;
   pickupAddress: string;
   whatsappUrl: string;
@@ -39,6 +41,7 @@ export interface ShopOrder {
   events: { status: OrderStatus; reason: string; createdAt: string }[];
 }
 export interface StoreSettings {
+  minimumStock?: number;
   whatsappNumber: string;
   pickupAddress: string;
   reservationHours: number;

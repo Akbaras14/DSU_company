@@ -12,7 +12,10 @@ import {
   Menu,
 } from "lucide-react";
 import { availableStock, type NurserySnapshot } from "@dsu/contracts";
-import { createDemoService, localDate } from "@/lib/demo";
+import { localDate, plantAge } from "@/lib/format";
+import { useShop } from "@/features/storefront/provider";
+import { PhotoUpload } from "@/features/admin/shared";
+import { ReadinessForm } from "@/features/admin/readiness";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/feedback";
 import {
@@ -23,25 +26,38 @@ import {
   DrawerDescription,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-/** Interactive demo foundation; role navigation is not real authentication. */
+/** Authenticated portal; batch ownership is enforced by the API. */
 export function NurseryPortal() {
-  const [data, setData] = useState<NurserySnapshot | null>(null);
+  const {
+    user,
+    loading,
+    error: sessionError,
+    refresh,
+    logout,
+    adminRequest,
+  } = useShop();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [data, setData] = useState<
+    (NurserySnapshot & { ownerId: string }) | null
+  >(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
-  const [scenario, setScenario] = useState<"normal" | "empty" | "error">(
-    "normal",
-  );
   const [retry, setRetry] = useState(0);
   const [view, setView] = useState("overview");
   const [menu, setMenu] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   useEffect(() => {
+    if (user?.role !== "PETUGAS") return;
     let active = true;
-    createDemoService(scenario)
-      .read()
+    adminRequest<NurserySnapshot>("/petugas/nursery")
       .then((result) => {
-        if (active) setData(result);
+        if (active) {
+          setData({ ...result, ownerId: user.id });
+          setError("");
+        }
       })
       .catch((cause: unknown) => {
         if (active)
@@ -52,10 +68,8 @@ export function NurseryPortal() {
     return () => {
       active = false;
     };
-  }, [scenario, retry]);
-  const batches = (data?.batches ?? []).filter(
-    (batch) => batch.assignedTo === "petugas-demo",
-  );
+  }, [user, adminRequest, retry]);
+  const batches = data?.batches ?? [];
   const filtered = batches.filter(
     (batch) =>
       (batch.species + batch.id + batch.location)
@@ -72,15 +86,28 @@ export function NurseryPortal() {
     { physical: 0, approved: 0, reserved: 0 },
   );
   const title =
-    view === "observations" ? "Riwayat pemantauan" : "Batch ditugaskan";
+    view === "observations" ? "Riwayat pemantauan" : "Kelompok ditugaskan";
   const nav = [
-    { id: "overview", label: "Batch ditugaskan", icon: Sprout },
+    { id: "overview", label: "Kelompok ditugaskan", icon: Sprout },
     {
       id: "observations",
       label: "Riwayat pemantauan",
       icon: ClipboardList,
     },
   ];
+  if (loading) return <LoadingState />;
+  if (sessionError)
+    return <ErrorState message={sessionError} onRetry={() => void refresh()} />;
+  if (user?.role !== "PETUGAS")
+    return (
+      <main id="main" className="page-content">
+        <h1>{user ? "Akses ditolak" : "Masuk sebagai petugas"}</h1>
+        <p>Halaman ini hanya untuk akun petugas.</p>
+        <Link href={user ? "/" : "/login"}>
+          {user ? "Kembali ke beranda" : "Masuk"}
+        </Link>
+      </main>
+    );
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -108,10 +135,22 @@ export function NurseryPortal() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <span className="badge">Mode Demo</span>
-          <p>Data simulasi untuk pengembangan dan pengujian.</p>
+          <span className="badge">Petugas</span>
+          <p>{user.name}</p>
+          <Button
+            variant="outline"
+            onClick={() =>
+              void logout().catch((cause: unknown) =>
+                setError(
+                  cause instanceof Error ? cause.message : "Gagal keluar.",
+                ),
+              )
+            }
+          >
+            Keluar
+          </Button>
           <Link href="/">
-            <ArrowLeft size={16} /> Pilihan portal
+            <ArrowLeft size={16} /> Beranda
           </Link>
         </div>
       </aside>
@@ -125,9 +164,7 @@ export function NurseryPortal() {
               <DrawerContent side="left">
                 <DrawerHeader>
                   <DrawerTitle>Navigasi {"petugas"}</DrawerTitle>
-                  <DrawerDescription>
-                    CV. Delta Sinergi Utama · Mode Demo
-                  </DrawerDescription>
+                  <DrawerDescription>CV. Delta Sinergi Utama</DrawerDescription>
                 </DrawerHeader>
                 <nav aria-label="Navigasi ponsel" className="px-4">
                   {nav.map((item) => (
@@ -154,51 +191,25 @@ export function NurseryPortal() {
               Pembibitan <span className="muted">/ {"Petugas"}</span>
             </span>
           </>
-          <span className="user-label">{"Petugas"} · Demo</span>
+          <span className="user-label">{user.name} · Petugas</span>
         </header>
         <main id="main" className="page-content">
-          <div className="notice">
-            <span>
-              <strong>Mode Demo</strong> · Data simulasi, bukan kondisi aktual
-              CV. DSU.
-            </span>
-            <details>
-              <summary>Skenario tampilan</summary>
-              <label>
-                Respons data
-                <select
-                  value={scenario}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    if (
-                      value === "normal" ||
-                      value === "empty" ||
-                      value === "error"
-                    ) {
-                      setData(null);
-                      setError("");
-                      setScenario(value);
-                    }
-                  }}
-                >
-                  <option value="normal">Normal</option>
-                  <option value="empty">Data kosong</option>
-                  <option value="error">Gagal dimuat</option>
-                </select>
-              </label>
-            </details>
-          </div>
           <div className="page-heading">
             <MascotHeading file="maskot_one.webp" compact>
               <div className="eyebrow">{"OPERASIONAL PEMBIBITAN"}</div>
               <h1>{title}</h1>
-              <p>{"Pengamatan manual untuk batch dalam penugasan Anda."}</p>
+              <p>{"Pengamatan manual untuk kelompok dalam penugasan Anda."}</p>
             </MascotHeading>
-            <span className="period">
-              Dataset simulasi
-              <br />
-              <strong>23 September 2026 · WIB</strong>
-            </span>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setData(null);
+                setError("");
+                setRetry((v) => v + 1);
+              }}
+            >
+              Perbarui data
+            </Button>
           </div>
           {error ? (
             <ErrorState
@@ -209,7 +220,7 @@ export function NurseryPortal() {
                 setRetry((v) => v + 1);
               }}
             />
-          ) : !data ? (
+          ) : !data || data.ownerId !== user.id ? (
             <LoadingState />
           ) : (
             <>
@@ -255,9 +266,10 @@ export function NurseryPortal() {
                   <section className="panel">
                     <div className="panel-title">
                       <div>
-                        <h2>{"Batch dalam penugasan"}</h2>
+                        <h2>{"Kelompok dalam penugasan"}</h2>
                         <p>
-                          {batches.length} batch · {"Hanya batch tugas Anda"}
+                          {batches.length} kelompok ·{" "}
+                          {"Hanya kelompok tugas Anda"}
                         </p>
                       </div>
                       <Package size={22} />
@@ -265,7 +277,7 @@ export function NurseryPortal() {
                     <div className="filters">
                       <label className="search">
                         <Search size={18} />
-                        <span className="sr-only">Cari batch</span>
+                        <span className="sr-only">Cari kelompok</span>
                         <input
                           value={query}
                           onChange={(event) => setQuery(event.target.value)}
@@ -291,14 +303,15 @@ export function NurseryPortal() {
                       <div
                         className="table-scroll"
                         role="region"
-                        aria-label="Stok per batch"
+                        aria-label="Stok per kelompok"
                         tabIndex={0}
                       >
                         <table>
                           <thead>
                             <tr>
-                              <th>Tanaman / batch</th>
+                              <th>Tanaman / kelompok</th>
                               <th>Lokasi</th>
+                              <th>Umur tanaman</th>
                               <th className="number">Fisik</th>
                               <th className="number">Siap jual</th>
                               <th className="number">Reservasi</th>
@@ -316,6 +329,7 @@ export function NurseryPortal() {
                                   </span>
                                 </td>
                                 <td>{batch.location}</td>
+                                <td>{plantAge(batch.plantedAt)}</td>
                                 <td className="number">{batch.physical}</td>
                                 <td className="number">{batch.approved}</td>
                                 <td className="number">{batch.reserved}</td>
@@ -350,13 +364,17 @@ export function NurseryPortal() {
                       </div>
                     ) : (
                       <div className="empty">
-                        <h3>Tidak ada batch ditemukan</h3>
-                        <p>Coba kata pencarian atau kategori lain.</p>
+                        <h3>Tidak ada kelompok ditemukan</h3>
+                        <p>
+                          {batches.length
+                            ? "Coba kata pencarian atau kategori lain."
+                            : "Belum ada kelompok yang ditugaskan kepada Anda. Hubungi admin untuk penugasan."}
+                        </p>
                       </div>
                     )}
                     <div className="panel-footer">
-                      Menampilkan {filtered.length} dari {batches.length} batch
-                      · Satuan: tanaman
+                      Menampilkan {filtered.length} dari {batches.length}{" "}
+                      kelompok · Satuan: tanaman
                     </div>
                   </section>
                   {selected &&
@@ -368,12 +386,166 @@ export function NurseryPortal() {
                             {b.species} · {b.id}
                           </h2>
                           <p>
-                            {b.location} · Ditanam {localDate(b.plantedAt)}
+                            {b.location} ·{" "}
+                            {b.plantedAt
+                              ? `Ditanam ${localDate(b.plantedAt)}`
+                              : "Tanggal tanam belum tercatat"}
                           </p>
+                          <p>Umur tanaman: {plantAge(b.plantedAt)}</p>
                           <p>
                             Stok tersedia berasal dari persetujuan admin,
                             dikurangi reservasi aktif.
                           </p>
+                          <form
+                            onSubmit={async (event) => {
+                              event.preventDefault();
+                              const form = event.currentTarget;
+                              const values = new FormData(form);
+                              setSaving(true);
+                              setSaveError("");
+                              setSaved(false);
+                              try {
+                                await adminRequest(
+                                  "/petugas/batches/" +
+                                    encodeURIComponent(b.id) +
+                                    "/observations",
+                                  {
+                                    method: values.get("method"),
+                                    condition: values.get("condition"),
+                                    notes: values.get("notes"),
+                                    health: values.get("health"),
+                                    photoUrl: values.get("photoUrl") || null,
+                                    correctionOf:
+                                      values.get("correctionOf") || null,
+                                    ...(String(
+                                      values.get("leafCounts") || "",
+                                    ).trim()
+                                      ? {
+                                          leafCounts: String(
+                                            values.get("leafCounts"),
+                                          )
+                                            .split(/[;\s]+/)
+                                            .filter(Boolean)
+                                            .map(Number),
+                                        }
+                                      : {}),
+                                    heights: String(values.get("heights"))
+                                      .split(/[;\s]+/)
+                                      .filter(Boolean)
+                                      .map(Number),
+                                  },
+                                  "POST",
+                                );
+                                form.reset();
+                                setSaved(true);
+                                setRetry((v) => v + 1);
+                              } catch (cause) {
+                                setSaveError(
+                                  cause instanceof Error
+                                    ? cause.message
+                                    : "Pengamatan gagal disimpan.",
+                                );
+                              } finally {
+                                setSaving(false);
+                              }
+                            }}
+                          >
+                            <h3>Catat pengamatan</h3>
+                            <fieldset disabled={saving}>
+                              <p>
+                                <label>
+                                  Status kesehatan
+                                  <select name="health">
+                                    <option value="HEALTHY">Sehat</option>
+                                    <option value="NEEDS_ATTENTION">
+                                      Perlu perhatian
+                                    </option>
+                                    <option value="CRITICAL">Kritis</option>
+                                  </select>
+                                </label>
+                              </p>
+                              <p>
+                                <label>
+                                  Jumlah daun per sampel (opsional)
+                                  <input
+                                    name="leafCounts"
+                                    placeholder="Contoh: 8; 10; 9"
+                                  />
+                                </label>
+                              </p>
+                              <p>
+                                <label>
+                                  Koreksi pengamatan sebelumnya
+                                  <select name="correctionOf" defaultValue="">
+                                    <option value="">Pengamatan baru</option>
+                                    {data.observations
+                                      .filter((o) => o.batchId === b.id)
+                                      .map((o) => (
+                                        <option key={o.id} value={o.id}>
+                                          {o.observedAt} · {o.condition}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </label>
+                              </p>
+                              <PhotoUpload purpose="monitoring" />
+                              <p>
+                                <label>
+                                  Metode{" "}
+                                  <input
+                                    name="method"
+                                    required
+                                    minLength={2}
+                                    maxLength={100}
+                                    placeholder="Contoh: sampel acak"
+                                  />
+                                </label>
+                              </p>
+                              <p>
+                                <label>
+                                  Kondisi tanaman{" "}
+                                  <input
+                                    name="condition"
+                                    required
+                                    minLength={2}
+                                    maxLength={100}
+                                  />
+                                </label>
+                              </p>
+                              <p>
+                                <label>
+                                  Tinggi sampel (cm){" "}
+                                  <input
+                                    name="heights"
+                                    required
+                                    aria-describedby="sample-help"
+                                  />
+                                </label>
+                              </p>
+                              <p id="sample-help">
+                                Pisahkan angka dengan spasi atau titik koma.
+                                Contoh: 42; 45; 39. Gunakan titik untuk desimal.
+                                Maksimal 100 sampel.
+                              </p>
+                              <p>
+                                <label>
+                                  Catatan{" "}
+                                  <textarea name="notes" maxLength={1000} />
+                                </label>
+                              </p>
+                              <Button type="submit">
+                                {saving ? "Menyimpan…" : "Simpan pengamatan"}
+                              </Button>
+                            </fieldset>
+                            {saveError && <p role="alert">{saveError}</p>}
+                            {saved && (
+                              <p role="status">Pengamatan berhasil disimpan.</p>
+                            )}
+                          </form>
+                          <ReadinessForm
+                            batchId={b.id}
+                            observations={data.observations}
+                          />
                           <Button
                             variant="outline"
                             onClick={() => setSelected(null)}
@@ -406,13 +578,14 @@ export function NurseryPortal() {
                           <p>
                             Rata-rata tinggi:{" "}
                             {(
-                              o.measurements.reduce(
-                                (sum, m) => sum + m.value,
-                                0,
-                              ) / o.sampleCount
+                              o.measurements
+                                .filter((m) => m.parameter === "Tinggi")
+                                .reduce((sum, m) => sum + m.value, 0) /
+                              o.sampleCount
                             ).toFixed(1)}{" "}
                             cm
                           </p>
+                          <p>{o.notes}</p>
                           <p className="muted">
                             Rata-rata sampel tidak mewakili ukuran pasti seluruh
                             tanaman. Identitas individu tidak dilacak antarsesi.

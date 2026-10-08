@@ -97,7 +97,7 @@ export function ProfileContent() {
             />
           </label>
           <label className="shop-field">
-            Alamat email
+            Alamat surel
             <input
               type="email"
               autoComplete="email"
@@ -106,7 +106,7 @@ export function ProfileContent() {
               aria-describedby="profile-email-help"
             />
             <small id="profile-email-help">
-              Email digunakan untuk masuk dan tidak dapat diubah di halaman ini.
+              Surel digunakan untuk masuk dan tidak dapat diubah di halaman ini.
             </small>
           </label>
           <label className="shop-field">

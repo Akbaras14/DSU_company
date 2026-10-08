@@ -24,6 +24,7 @@
 
 # production
 /build
+/apps/api/uploads/
 
 # misc
 .tmp-*
@@ -46,3 +47,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# encrypted database backups and temporary restore data
+/backups/

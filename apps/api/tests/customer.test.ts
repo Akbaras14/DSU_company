@@ -67,6 +67,12 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
     return client;
   }
   let first: Client, second: Client, admin: Client;
+  async function verifyPayment(id: string) {
+    const order = await db.order.findUniqueOrThrow({ where: { id } });
+    const payment = await db.payment.create({ data: { orderId: id, amount: order.total, method: "Transfer pengujian", proofUrl: "/fixture" } });
+    await db.order.update({ where: { id }, data: { status: "WAITING_VERIFICATION" } });
+    assert.equal((await call(admin, `/admin/payments/${payment.id}/review`, { status: "VERIFIED", reason: "Dana pengujian diterima" })).res.status, 200);
+  }
   let winning: Client,
     other: Client,
     orderId = "";
@@ -92,6 +98,8 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
             location: "Area uji",
             physical: 2,
             approved: 2,
+            status: "READY_FOR_SALE",
+            publishedStock: 2,
           },
         },
       },
@@ -257,7 +265,7 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
         });
         assert.equal(stock.reserved, 2);
         assert.equal(stock.physical, 2);
-        assert.equal(responses[winner].data.status, "PENDING_CONFIRMATION");
+        assert.equal(responses[winner].data.status, "PENDING_PAYMENT");
         assert.equal(responses[winner].data.fulfillmentMethod, "DELIVERY");
         assert.match(
           responses[winner].data.whatsappUrl,
@@ -344,7 +352,8 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
         });
         assert.equal(created.res.status, 201);
         const path = `/admin/orders/${created.data.id}/status`;
-        for (const status of ["CONFIRMED", "PROCESSING"])
+        await verifyPayment(created.data.id);
+        for (const status of ["PROCESSING"])
           assert.equal(
             (
               await call(admin, path, {
@@ -377,13 +386,15 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
               reason: "Pelanggan membatalkan pengambilan",
             })
           ).res.status,
-          200,
+          409,
         );
+        assert.equal((await call(admin, path, { status: "COMPLETED", reason: "Tanaman diambil pelanggan" })).res.status, 200);
       },
     );
     await t.test(
       "admin shipping requires tracking and fulfillment deducts inventory once",
       async () => {
+        await db.batch.update({ where: { id: batchId }, data: { physical: 2, approved: 2, reserved: 0, publishedStock: 2, status: "READY_FOR_SALE" } });
         await call(first, "/customer/cart", {
           productId,
           quantity: 2,
@@ -410,8 +421,8 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
           ).res.status,
           409,
         );
+        await verifyPayment(created.data.id);
         for (const status of [
-          "CONFIRMED",
           "PROCESSING",
           "SHIPPED",
           "COMPLETED",
@@ -464,8 +475,8 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
         assert.equal(stock.approved, 0);
         assert.equal(stock.reserved, 0);
         assert.equal(
-          await db.inventoryTransaction.count({ where: { batchId } }),
-          1,
+          await db.inventoryTransaction.count({ where: { batchId, kind: "SALE" } }),
+          2,
         );
         await assert.rejects(
           db.batch.update({ where: { id: batchId }, data: { approved: 1 } }),
@@ -486,6 +497,8 @@ test("Customer MySQL: persistent identity, ownership, atomic stock and WhatsApp 
     await db.orderEvent.deleteMany({ where: { orderId: { in: ids } } });
     await db.orderItem.deleteMany({ where: { orderId: { in: ids } } });
     await db.reservation.deleteMany({ where: { orderId: { in: ids } } });
+    await db.payment.deleteMany({ where: { orderId: { in: ids } } });
+    await db.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
     await db.inventoryTransaction.deleteMany({ where: { batchId } });
     await db.order.deleteMany({ where: { id: { in: ids } } });
     await db.cartItem.deleteMany({ where: { userId: { in: userIds } } });

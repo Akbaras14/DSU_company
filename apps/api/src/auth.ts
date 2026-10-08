@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import type { Request, RequestHandler, Response } from "express";
 import type { Role } from "@prisma/client";
 import { z } from "zod";
-import { db } from "./db.js";
+import { db, transaction } from "./db.js";
 import { config } from "./config.js";
 import { HttpError } from "./http.js";
 
@@ -16,10 +16,10 @@ const scrypt = promisify(scryptCallback);
 const cookieName = "dsu_auth";
 export const credentials = z.object({
   email: z
-    .email("Alamat email tidak valid.")
+    .email("Alamat surel tidak valid.")
     .max(191)
     .transform((value) => value.toLowerCase()),
-  password: z.string().min(10, "Password minimal 10 karakter.").max(128),
+  password: z.string().min(10, "Kata sandi minimal 10 karakter.").max(128),
 });
 export const registration = credentials
   .extend({ name: z.string().trim().min(2).max(100) })
@@ -60,26 +60,41 @@ const readToken = (req: Request) =>
     ?.slice(cookieName.length + 1);
 
 /** Creates an opaque, server-revocable session; no identity is trusted from browser cookies. */
-export async function openSession(userId: string, req: Request, res: Response) {
+export async function openSession(
+  userId: string,
+  req: Request,
+  res: Response,
+  expectedPasswordHash: string,
+) {
   const previous = readToken(req);
-  if (previous)
-    await db.session.deleteMany({ where: { tokenHash: tokenHash(previous) } });
   const token = randomBytes(32).toString("hex");
   const csrfToken = randomBytes(32).toString("hex");
-  await db.session.create({
-    data: {
-      userId,
-      tokenHash: tokenHash(token),
-      csrfToken,
-      expiresAt: new Date(Date.now() + 7 * 86400000),
-    },
+  let maxAge = 7 * 86400000;
+  await transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM User WHERE id = ${userId} FOR UPDATE`;
+    const user = await tx.user.findUnique({ where: { id: userId } });
+    if (!user?.active || user.passwordHash !== expectedPasswordHash)
+      throw new HttpError(401, "Kredensial berubah. Silakan masuk kembali.");
+    maxAge = user.role === "PELANGGAN" ? 7 * 86400000 : 8 * 3600000;
+    if (previous)
+      await tx.session.deleteMany({
+        where: { tokenHash: tokenHash(previous) },
+      });
+    await tx.session.create({
+      data: {
+        userId,
+        tokenHash: tokenHash(token),
+        csrfToken,
+        expiresAt: new Date(Date.now() + maxAge),
+      },
+    });
   });
   res.cookie(cookieName, token, {
     httpOnly: true,
     secure: config.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 7 * 86400000,
+    maxAge,
   });
   return csrfToken;
 }
@@ -107,6 +122,7 @@ export const requireRole =
     )
       throw new HttpError(403, "Sesi keamanan berubah. Muat ulang halaman.");
     res.locals.userId = value.user.id;
+    res.locals.sessionHash = value.tokenHash;
     next();
   };
 export async function logout(req: Request, res: Response) {

@@ -331,6 +331,7 @@ export function Storefront({ view, id }: { view: CustomerView; id?: string }) {
                           <button
                             type="button"
                             aria-label={`Hapus ${line.name}`}
+                            data-destructive="true"
                             disabled={cartPending}
                             onClick={() =>
                               void changeFloatingCart(line.productId)

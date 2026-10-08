@@ -20,6 +20,7 @@ export function DSUModal({
   finalFocus,
   dismissible = true,
   confirmHref,
+  destructive = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,6 +35,7 @@ export function DSUModal({
   finalFocus?: () => HTMLElement | null;
   dismissible?: boolean;
   confirmHref?: string;
+  destructive?: boolean;
 }) {
   const firstAction = useRef<HTMLButtonElement>(null);
   const linkAction = useRef<HTMLAnchorElement>(null);
@@ -104,6 +106,7 @@ export function DSUModal({
               <a
                 ref={linkAction}
                 className={styles.confirm}
+                data-destructive={destructive || undefined}
                 href={confirmHref}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -116,6 +119,7 @@ export function DSUModal({
                 type="button"
                 ref={kind === "confirm" ? undefined : firstAction}
                 className={styles.confirm}
+                data-destructive={destructive || undefined}
                 disabled={pending}
                 onClick={onConfirm}
               >

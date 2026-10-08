@@ -15,6 +15,7 @@ type Message = {
   message: string;
   kind?: NoticeKind;
   confirmLabel?: string;
+  destructive?: boolean;
 };
 type Entry = Message & { resolve: (confirmed: boolean) => void };
 type Notifications = {
@@ -62,6 +63,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         title={current?.title || titles[current?.kind || "info"]}
         description={current?.message || ""}
         kind={current?.kind || "info"}
+        destructive={current?.destructive}
         confirmLabel={
           current?.confirmLabel ||
           (current?.kind === "confirm" ? "Ya, lanjutkan" : "Mengerti")
