@@ -225,7 +225,10 @@ export function AdminSettings() {
               defaultValue={data.email}
             />
           </Field>
-          <Field label="Default minimum stok *">
+          <Field
+            label="Default minimum stok *"
+            hint="Batas bawaan untuk menandai persediaan rendah. Bisa diatur lagi per jenis tanaman."
+          >
             <input
               name="minimumStock"
               type="number"
@@ -235,7 +238,10 @@ export function AdminSettings() {
               defaultValue={data.minimumStock}
             />
           </Field>
-          <Field label="Batas pembayaran (jam) *">
+          <Field
+            label="Batas pembayaran (jam) *"
+            hint="Pesanan baru yang belum dibayar akan kedaluwarsa setelah batas ini; reservasinya dilepas."
+          >
             <input
               name="paymentTimeoutHours"
               type="number"
@@ -245,7 +251,10 @@ export function AdminSettings() {
               defaultValue={data.paymentTimeoutHours}
             />
           </Field>
-          <Field label="Interval pemantauan (hari) *">
+          <Field
+            label="Interval pemantauan (hari) *"
+            hint="Kelompok ditandai perlu dipantau setelah jumlah hari ini sejak pengamatan terakhir."
+          >
             <input
               name="monitoringIntervalDays"
               type="number"

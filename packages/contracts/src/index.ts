@@ -1,38 +1,5 @@
 export type Role = "ADMIN" | "PETUGAS" | "PELANGGAN";
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  active: boolean;
-}
 export type ReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
-export type PaymentStatus =
-  "UNPAID" | "PENDING_REVIEW" | "VERIFIED" | "REJECTED";
-export interface Finding {
-  id: string;
-  batchId: string;
-  reportedBy: string;
-  quantity: number;
-  description: string;
-  status: ReviewStatus;
-  inventoryReference?: string;
-}
-export interface ReadinessRequest {
-  id: string;
-  batchId: string;
-  locationId: string;
-  observationId: string;
-  proposedQuantity: number;
-  approvedQuantity: number;
-  status: ReviewStatus;
-  reviewedBy?: string;
-  reason?: string;
-}
-export interface CartItem {
-  productId: string;
-  quantity: number;
-}
 export interface CustomerContact {
   name: string;
   phone: string;
@@ -50,29 +17,6 @@ export interface CheckoutContact extends CustomerContact {
   postalCode: string;
 }
 export type FulfillmentMethod = "DELIVERY" | "PICKUP";
-export interface OrderItemSnapshot {
-  productId: string;
-  name: string;
-  quantity: number;
-  unitPrice: number;
-}
-export interface Payment {
-  id: string;
-  orderId: string;
-  amount: number;
-  status: PaymentStatus;
-  proofKey?: string;
-  verifiedBy?: string;
-  reason?: string;
-}
-export interface Reservation {
-  id: string;
-  orderId: string;
-  batchId: string;
-  locationId: string;
-  quantity: number;
-  status: "ACTIVE" | "RELEASED" | "FULFILLED";
-}
 export type OrderStatus =
   | "WAITING_VERIFICATION"
   | "READY_TO_SHIP"
@@ -95,6 +39,7 @@ export interface Stock {
 }
 export interface Batch extends Stock {
   id: string;
+  status: string;
   species: string;
   category: string;
   location: string;
@@ -149,9 +94,7 @@ export interface Product {
 export interface NurserySnapshot {
   batches: Batch[];
   observations: Observation[];
-}
-export interface NurseryReadService {
-  read(): Promise<NurserySnapshot>;
+  monitoringIntervalDays: number;
 }
 /** Returns orderable stock; throws when a stock invariant is broken. No mutations. */
 export function availableStock(stock: Stock): number {

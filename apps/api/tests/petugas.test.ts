@@ -181,6 +181,15 @@ test("Petugas: role, CSRF, assignment ownership, validation and persistent obser
       200,
     );
     const read = (await call(staff, "/petugas/nursery")).data;
+    const settings = await db.systemSettings.findUnique({ where: { id: 1 } });
+    assert.equal(
+      read.monitoringIntervalDays,
+      settings?.monitoringIntervalDays ?? 7,
+    );
+    assert.equal(
+      read.batches.find((b: { id: string }) => b.id === batchId).status,
+      "MONITORING",
+    );
     assert.equal(
       read.batches.find((b: { id: string }) => b.id === batchId).physical,
       10,
@@ -243,6 +252,54 @@ test("Petugas: role, CSRF, assignment ownership, validation and persistent obser
       (await db.batch.findUniqueOrThrow({ where: { id: batchId } })).approved,
       4,
     );
+    const readinessPath = `/petugas/batches/${batchId}/readiness`;
+    const readiness = {
+      observationId: saved.data.id,
+      quantity: 3,
+      reason: "Tanaman sehat dan siap diperiksa admin",
+    };
+    assert.equal((await call(other, readinessPath, readiness)).res.status, 404);
+    assert.equal(
+      (await call(staff, readinessPath, { ...readiness, quantity: 7 })).res
+        .status,
+      409,
+    );
+    const submitted = await call(staff, readinessPath, readiness);
+    assert.equal(submitted.res.status, 201);
+    assert.equal(submitted.data.status, "PENDING");
+    assert.equal((await call(staff, readinessPath, readiness)).res.status, 409);
+    assert.ok(
+      (await call(staff, "/petugas/approvals")).data.some(
+        (row: { id: string }) => row.id === submitted.data.id,
+      ),
+    );
+    assert.ok(
+      !(await call(other, "/petugas/approvals")).data.some(
+        (row: { id: string }) => row.id === submitted.data.id,
+      ),
+    );
+    assert.equal(
+      (await db.batch.findUniqueOrThrow({ where: { id: batchId } })).approved,
+      4,
+    );
+    const reviewed = await call(
+      admin,
+      `/admin/approvals/${submitted.data.id}/review`,
+      {
+        status: "APPROVED",
+        reason: "Hasil pemeriksaan admin sesuai pengajuan",
+      },
+    );
+    assert.equal(reviewed.res.status, 200);
+    const history = (await call(staff, "/petugas/approvals")).data.find(
+      (row: { id: string }) => row.id === submitted.data.id,
+    );
+    assert.equal(history.status, "APPROVED");
+    assert.ok(history.reviewedAt);
+    assert.equal(
+      (await db.batch.findUniqueOrThrow({ where: { id: batchId } })).approved,
+      7,
+    );
     await call(admin, assignment, { assignedTo: other.id }, "PATCH");
     assert.equal((await call(staff, path, input)).res.status, 404);
     assert.equal(
@@ -263,6 +320,7 @@ test("Petugas: role, CSRF, assignment ownership, validation and persistent obser
       null,
     );
   } finally {
+    await db.readinessApproval.deleteMany({ where: { batchId } });
     await db.observation.deleteMany({ where: { batchId } });
     await db.batch.deleteMany({ where: { id: batchId } });
     await db.product.deleteMany({ where: { id: productId } });

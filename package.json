@@ -17,6 +17,7 @@
     "dev:web": "npm run dev --workspace @dsu/web",
     "dev:api": "npm run dev --workspace @dsu/api",
     "db:generate": "npm run db:generate --workspace @dsu/api",
+    "db:seed": "npm run db:seed --workspace @dsu/api",
     "db:migrate": "node --env-file=.env node_modules/prisma/build/index.js migrate deploy --schema apps/api/prisma/schema.prisma",
     "admin:create": "npm run admin:create --workspace @dsu/api",
     "admin:reset-password": "npm run admin:reset-password --workspace @dsu/api",

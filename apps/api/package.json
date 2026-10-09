@@ -7,6 +7,7 @@
     "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
+    "db:seed": "tsx src/seed-dummy.ts",
     "db:migrate": "node --env-file=../../.env ../../node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma",
     "admin:create": "tsx src/manage.ts admin",
     "admin:reset-password": "tsx src/manage.ts reset-admin",

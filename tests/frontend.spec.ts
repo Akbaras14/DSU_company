@@ -51,9 +51,10 @@ test("admin password forms validate, cancel, reset staff and change the admin pa
     .getByLabel("Konfirmasi kata sandi baru *", { exact: true })
     .fill("Mismatch-browser-2026!");
   await reset.getByRole("button", { name: "Simpan", exact: true }).click();
-  await expect(reset.getByRole("alert")).toHaveText(
+  await expect(reset.getByRole("alert")).toContainText(
     "Konfirmasi kata sandi tidak sama.",
   );
+  await expect(reset.getByRole("alert")).toBeFocused();
   await reset
     .getByLabel("Konfirmasi kata sandi baru *", { exact: true })
     .fill(newPassword);
@@ -414,7 +415,7 @@ test("petugas retains assigned batches, search, details and observation context"
 }) => {
   await page.goto("/petugas");
   await expect(
-    page.getByRole("heading", { name: "Kelompok ditugaskan", exact: true }),
+    page.getByRole("heading", { name: "Penugasan", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Tabebuya rosea")).toHaveCount(0);
   await expect(
@@ -459,6 +460,302 @@ test("petugas layout fits mobile, tablet and desktop", async ({ page }) => {
       ),
     ).toBeTruthy();
   }
+});
+
+test("petugas saves photos and samples, submits readiness and sees the admin decision after reload", async ({
+  page,
+  request,
+}) => {
+  const batchId = "browser-staff-batch";
+  await page.goto("/petugas");
+  await page.getByRole("button", { name: `Lihat ${batchId}` }).click();
+  await expect(
+    page.getByText(
+      "Catat pengamatan dengan status kesehatan Sehat sebelum mengajukan siap jual.",
+    ),
+  ).toBeVisible();
+  await page.getByLabel("Metode", { exact: true }).fill("Pengukuran lapangan");
+  await page.getByLabel("Kondisi tanaman", { exact: true }).fill("Daun sehat");
+  await page.getByLabel("Tinggi sampel (cm)", { exact: true }).fill("25; 27");
+  await page.getByLabel("Jumlah daun per sampel (opsional)").fill("8");
+  await page
+    .getByLabel("Catatan", { exact: true })
+    .fill("Pengamatan petugas tersimpan di MySQL");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "pengamatan.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG1kAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await expect(
+    page.getByRole("link", { name: "Lihat foto tersimpan" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Simpan pengamatan" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Jumlah sampel daun dan tinggi harus sama",
+  );
+  await expect(page.getByLabel("Metode", { exact: true })).toHaveValue(
+    "Pengukuran lapangan",
+  );
+  await page.getByLabel("Jumlah daun per sampel (opsional)").fill("8; 9");
+  await page.getByRole("button", { name: "Simpan pengamatan" }).click();
+  await expect(
+    page.getByText("Pengamatan berhasil disimpan.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('input[name="photoUrl"]')).toHaveValue("");
+  await expect(
+    page.getByRole("link", { name: "Lihat foto tersimpan" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "Pengamatan sehat", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Pengajuan jual", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Pengajuan jual", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Kelompok penugasan").selectOption(batchId);
+  await page
+    .getByRole("combobox", { name: "Pengamatan sehat", exact: true })
+    .selectOption({ index: 1 });
+  await expect(page.getByLabel("Jumlah tanaman diajukan")).toHaveAttribute(
+    "max",
+    "8",
+  );
+  await page.getByLabel("Jumlah tanaman diajukan").fill("3");
+  await page
+    .getByLabel("Catatan pengajuan")
+    .fill("Tiga bibit sehat siap diperiksa admin");
+  await page
+    .getByRole("button", { name: "Ajukan siap jual", exact: true })
+    .click();
+  await expect(
+    page.getByText("Pengajuan berhasil dikirim. Tunggu pemeriksaan admin."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Ajukan siap jual", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Pengajuan jual", exact: true })
+    .click();
+  let card = page.locator(".observation").filter({ hasText: batchId });
+  await expect(card).toContainText("Menunggu persetujuan");
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Pengajuan jual", exact: true })
+    .click();
+  card = page.locator(".observation").filter({ hasText: batchId });
+  await expect(card).toContainText("3 tanaman");
+  const login = await request.post("/api/v1/auth/login", {
+    headers: { Origin: "http://localhost:3101", "X-DSU-Client": "web" },
+    data: {
+      email: "admin@browser.example.test",
+      password: "Admin-browser-2026!",
+    },
+  });
+  expect(login.ok()).toBeTruthy();
+  const auth = await login.json();
+  const list = await request.get("/api/v1/admin/approvals");
+  expect(list.ok()).toBeTruthy();
+  const approval = (await list.json()).find(
+    (row: { batchId: string }) => row.batchId === batchId,
+  );
+  const review = await request.post(
+    `/api/v1/admin/approvals/${approval.id}/review`,
+    {
+      headers: {
+        Origin: "http://localhost:3101",
+        "X-DSU-Client": "web",
+        "X-CSRF-Token": auth.csrfToken,
+      },
+      data: {
+        status: "REJECTED",
+        reason: "Lanjutkan pemantauan sebelum dijual",
+      },
+    },
+  );
+  expect(review.ok()).toBeTruthy();
+  await page.getByRole("button", { name: "Perbarui data" }).click();
+  await expect(card).toContainText("Ditolak");
+  await expect(card).toContainText("Lanjutkan pemantauan sebelum dijual");
+  await page.getByRole("button", { name: "Riwayat pemantauan" }).click();
+  const observation = page
+    .locator(".observation")
+    .filter({ hasText: "Pengamatan petugas tersimpan di MySQL" });
+  await observation.getByText("Lihat pengukuran 2 sampel").click();
+  await expect(
+    observation.getByRole("cell", { name: "9 daun", exact: true }),
+  ).toBeVisible();
+  await expect(
+    observation.getByRole("link", { name: "Lihat foto pengamatan" }),
+  ).toBeVisible();
+});
+
+test("petugas preserves an observation draft when refreshing fails", async ({
+  page,
+}) => {
+  await page.goto("/petugas");
+  await page.getByRole("button", { name: "Lihat browser-monstera" }).click();
+  const method = page.getByLabel("Metode", { exact: true });
+  await method.fill("Draf pengukuran belum disimpan");
+  await page.route("**/api/v1/petugas/nursery", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Koneksi pemantauan terputus." }),
+    }),
+  );
+  await page.getByRole("button", { name: "Perbarui data" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Data terakhir dan isian Anda tetap ditampilkan",
+  );
+  await expect(method).toHaveValue("Draf pengukuran belum disimpan");
+  await page.unroute("**/api/v1/petugas/nursery");
+  await page.getByRole("button", { name: "Coba lagi" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(method).toHaveValue("Draf pengukuran belum disimpan");
+});
+
+test("petugas can cancel and confirm logout from the mobile navigation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/petugas");
+  await page.getByRole("button", { name: "Buka navigasi" }).click();
+  await page
+    .getByRole("dialog", { name: "Navigasi petugas" })
+    .getByRole("button", { name: "Keluar", exact: true })
+    .click();
+  const confirmation = page.getByRole("dialog", {
+    name: "Keluar dari portal petugas?",
+  });
+  await expect(confirmation).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toBeHidden();
+  await expect(page.locator(".stock-summary")).toBeVisible();
+  await page.getByRole("button", { name: "Buka navigasi" }).click();
+  await page
+    .getByRole("dialog", { name: "Navigasi petugas" })
+    .getByRole("button", { name: "Keluar", exact: true })
+    .click();
+  await confirmation
+    .getByRole("button", { name: "Ya, keluar", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/login$/);
+  const session = await page.request.get("/api/v1/auth/session");
+  expect((await session.json()).user).toBeNull();
+});
+
+test("petugas confirms before discarding an observation or sale draft", async ({
+  page,
+}) => {
+  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  const observation = await page.request.post(
+    "/api/v1/petugas/batches/browser-staff-batch/observations",
+    {
+      headers: {
+        Origin: "http://localhost:3101",
+        "X-DSU-Client": "web",
+        "X-CSRF-Token": session.csrfToken,
+      },
+      data: {
+        method: "Sampel acak",
+        condition: "Sehat",
+        notes: "Pengujian perlindungan draf",
+        heights: [25, 27],
+        health: "HEALTHY",
+      },
+    },
+  );
+  expect(observation.ok()).toBeTruthy();
+  await page.goto("/petugas");
+  await page.getByRole("button", { name: "Lihat browser-monstera" }).click();
+  await page
+    .getByLabel("Metode", { exact: true })
+    .fill("Isian yang perlu dipertahankan");
+  await page
+    .getByRole("button", { name: "Pengajuan jual", exact: true })
+    .click();
+  const confirmation = page.getByRole("dialog", {
+    name: "Tinggalkan isian yang belum disimpan?",
+  });
+  await expect(confirmation).toBeVisible();
+  await confirmation
+    .getByRole("button", { name: "Batal", exact: true })
+    .click();
+  await expect(page.getByLabel("Metode", { exact: true })).toHaveValue(
+    "Isian yang perlu dipertahankan",
+  );
+  await page
+    .getByRole("button", { name: "Pengajuan jual", exact: true })
+    .click();
+  await confirmation
+    .getByRole("button", { name: "Ya, tinggalkan", exact: true })
+    .click();
+  await page
+    .getByLabel("Kelompok penugasan")
+    .selectOption("browser-staff-batch");
+  await page
+    .getByLabel("Catatan pengajuan")
+    .fill("Draf pengajuan jangan hilang");
+  await page.getByLabel("Kelompok penugasan").selectOption("browser-monstera");
+  await expect(confirmation).toBeVisible();
+  await confirmation
+    .getByRole("button", { name: "Batal", exact: true })
+    .click();
+  await expect(page.getByLabel("Kelompok penugasan")).toHaveValue(
+    "browser-staff-batch",
+  );
+  await expect(page.getByLabel("Catatan pengajuan")).toHaveValue(
+    "Draf pengajuan jangan hilang",
+  );
+});
+
+test("admin table recovers from a failed read and keeps labels on mobile", async ({
+  page,
+}) => {
+  const login = await page.request.post("/api/v1/auth/login", {
+    headers: { Origin: "http://localhost:3101", "X-DSU-Client": "web" },
+    data: {
+      email: "admin@browser.example.test",
+      password: "Admin-browser-2026!",
+    },
+  });
+  expect(login.ok()).toBeTruthy();
+  await page.route("**/api/v1/admin/products", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Gangguan sementara pada daftar tanaman" }),
+    }),
+  );
+  await page.goto("/admin/tanaman");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "Gangguan sementara",
+  );
+  await page.unroute("**/api/v1/admin/products");
+  await page.getByRole("button", { name: "Coba lagi", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(
+    page.locator(".admin-responsive-table tbody tr").first(),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  expect(
+    await page
+      .locator(".admin-responsive-table")
+      .evaluate((el) => el.getBoundingClientRect().width),
+  ).toBeLessThan(390);
+  await expect(
+    page.locator(".admin-responsive-table td[data-label]").first(),
+  ).toHaveAttribute("data-label", /.+/);
 });
 
 test("admin creates staff and monitors real assignments and observations", async ({

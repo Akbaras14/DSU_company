@@ -7,6 +7,4 @@ export {
   SheetTitle as DrawerTitle,
   SheetDescription as DrawerDescription,
   SheetTrigger as DrawerTrigger,
-  SheetClose as DrawerClose,
-  SheetFooter as DrawerFooter,
 } from "./sheet";

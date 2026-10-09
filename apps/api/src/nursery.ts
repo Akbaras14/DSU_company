@@ -5,6 +5,10 @@ import { audit } from "./audit.js";
 import { requireMedia } from "./media.js";
 
 export async function nursery(assignedTo?: string) {
+  const settings = await db.systemSettings.findUnique({
+    where: { id: 1 },
+    select: { monitoringIntervalDays: true },
+  });
   const batches = await db.batch.findMany({
     where: assignedTo ? { assignedTo, status: { not: "ARCHIVED" } } : {},
     include: { product: true },
@@ -25,6 +29,7 @@ export async function nursery(assignedTo?: string) {
       plantedAt: plantedAt?.toISOString() ?? null,
     })),
     observations,
+    monitoringIntervalDays: settings?.monitoringIntervalDays ?? 7,
   };
 }
 
@@ -55,7 +60,10 @@ export async function observe(batchId: string, actorId: string, body: unknown) {
     await tx.$queryRaw`SELECT id FROM Batch WHERE id = ${batchId} FOR UPDATE`;
     const batch = await tx.batch.findUnique({ where: { id: batchId } });
     if (!batch || batch.assignedTo !== actorId || batch.status === "ARCHIVED")
-      throw new HttpError(404, "Kelompok tidak ditemukan dalam penugasan Anda.");
+      throw new HttpError(
+        404,
+        "Kelompok tidak ditemukan dalam penugasan Anda.",
+      );
     if (
       input.correctionOf &&
       !(await tx.observation.findFirst({
@@ -153,7 +161,10 @@ export async function requestReadiness(
     await tx.$queryRaw`SELECT id FROM Batch WHERE id = ${batchId} FOR UPDATE`;
     const batch = await tx.batch.findUnique({ where: { id: batchId } });
     if (!batch || batch.assignedTo !== actorId || batch.status === "ARCHIVED")
-      throw new HttpError(404, "Kelompok tidak ditemukan dalam penugasan Anda.");
+      throw new HttpError(
+        404,
+        "Kelompok tidak ditemukan dalam penugasan Anda.",
+      );
     const observation = await tx.observation.findFirst({
       where: { id: input.observationId, batchId, observedBy: actorId },
     });

@@ -33,6 +33,18 @@ Untuk memberi tugas, klik **Pantau** pada petugas, pilih batch yang belum dituga
 
 Login menggunakan akun ber-role `PETUGAS` melalui `/login`. Admin menugaskan batch di `/admin/batch` atau `/admin/petugas`. Petugas hanya melihat batch tugasnya dan dapat mencatat metode, kondisi, tinggi sampel dalam cm, serta catatan melalui detail batch. Pengamatan tersimpan di MySQL dan tidak mengubah stok siap jual. Batch tanpa penugasan tidak muncul di portal petugas. Terapkan `npm run db:migrate` dan `npm run db:generate` setelah pembaruan ini.
 
+Halaman `/petugas` menyediakan ringkasan penugasan dan kelompok yang perlu dipantau berdasarkan interval pemantauan di pengaturan admin. Daftar dapat dicari dan disaring menurut kategori/status; pada ponsel, tiap kelompok ditampilkan sebagai kartu dengan tombol detail. Petugas dapat mengunggah foto, mencatat jumlah daun per sampel, dan membuat koreksi tanpa menghapus pengamatan awal. Riwayat menampilkan pengukuran setiap sampel serta foto tersimpan.
+
+Menu **Penugasan** menampilkan kelompok tugas petugas dan formulir pengamatan. Menu **Pengajuan jual** menyediakan pilihan kelompok, formulir pengajuan, serta status dan catatan keputusan admin dari MySQL, termasuk setelah halaman dimuat ulang. Pengajuan memerlukan pengamatan sehat milik petugas dan jumlah yang tidak melebihi stok fisik belum disetujui. Pengajuan yang masih menunggu pemeriksaan tidak dapat diajukan ulang. Kegagalan pembaruan sementara mempertahankan isian pengamatan. Akun dan penugasan dibuat oleh admin; halaman operasional tidak membuat data contoh.
+
+## Data dummy lokal
+
+Jalankan `npm run db:seed` setelah migrasi untuk mengisi MySQL lokal `db_dsu` dengan 5 akun (admin, 2 petugas, 2 pelanggan), 10 tanaman dan penugasan, 9 pengamatan, 6 pengajuan jual, 7 pesanan, 5 pembayaran simulasi, dan 2 keranjang. Katalog memuat 4 tanaman siap jual; kelompok lainnya menunjukkan pemantauan, kesehatan bermasalah, pengajuan menunggu, dan pengajuan ditolak. Pesanan mencakup menunggu pembayaran, verifikasi, diproses, dikirim, selesai, dibatalkan, dan pembayaran ditolak.
+
+Semua produk/lokasi dan catatan simulasi ditandai **Dummy**. Kata sandi acak tersimpan di `.env.dummy.local` yang diabaikan Git. Login petugas: `budi@dummy.dsu.local` atau `sari@dummy.dsu.local`; pelanggan: `andi@dummy.dsu.local` atau `rina@dummy.dsu.local`; admin: `admin@dummy.dsu.local`. Gunakan kata sandi masing-masing dari file tersebut.
+
+Seed hanya dapat berjalan pada lingkungan development dengan database lokal `db_dsu`. Data yang sudah ada tidak diubah. Seluruh penambahan database dilakukan dalam satu transaksi dan stok diperiksa sebelum commit. Menjalankan ulang seed mempertahankan data, stok, dan kata sandi, termasuk perubahan yang sudah dilakukan melalui aplikasi. Bukti pembayaran berlabel simulasi dan tidak mewakili transfer nyata.
+
 ## Modul admin
 
 Implementasi mengikuti alur `admin.md`: master tanaman/kategori/lokasi ? batch ? monitoring petugas ? pengajuan siap jual ? approval admin ? katalog ? checkout dan reservasi ? verifikasi pembayaran ? fulfillment. Modul tersedia melalui sidebar `/admin`, termasuk inventory, laporan, audit, notifikasi, pelanggan, dan pengaturan. Data tersimpan di MySQL; hak akses dan validasi diperiksa oleh API.

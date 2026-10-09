@@ -29,7 +29,7 @@ const labels: Record<string, string> = {
   physical: "Total stok fisik",
   ready: "Siap jual tersedia",
   monitoring: "Dalam pemantauan",
-  reserved: "Terreservasi",
+  reserved: "Dipesan pelanggan",
   sold: "Tanaman terjual",
   damaged: "Rusak / mati",
   low: "Stok rendah",
@@ -75,12 +75,14 @@ export function AdminOverview() {
           description="Ringkasan operasional pembibitan dan tindakan yang perlu diprioritaskan."
         />
         <p role={error ? "alert" : "status"}>{error || "Memuat beranda…"}</p>
-        <button
-          className="shop-button"
-          onClick={() => setAttempt((a) => a + 1)}
-        >
-          Coba lagi
-        </button>
+        {error && (
+          <button
+            className="shop-button"
+            onClick={() => setAttempt((a) => a + 1)}
+          >
+            Coba lagi
+          </button>
+        )}
       </>
     );
   const max = Math.max(1, ...data.sales.map((point) => point[metric]));
@@ -91,6 +93,25 @@ export function AdminOverview() {
         title="Beranda"
         description="Persediaan, pemantauan, persetujuan dan penjualan dari data operasional tersimpan."
       />
+      <section
+        className="portal-next-actions"
+        aria-label="Pekerjaan utama admin"
+      >
+        <Link href="/admin/approval">
+          <strong>Tinjau pengajuan jual</strong>
+          <span>
+            {data.metrics.approvals ?? 0} pengajuan menunggu pemeriksaan
+          </span>
+        </Link>
+        <Link href="/admin/pembayaran">
+          <strong>Verifikasi pembayaran</strong>
+          <span>{data.metrics.payments ?? 0} pembayaran perlu diperiksa</span>
+        </Link>
+        <Link href="/admin/petugas">
+          <strong>Kelola penugasan</strong>
+          <span>Pilih petugas dan kelompok tanaman tugasnya</span>
+        </Link>
+      </section>
       <section
         className="admin-overview-summary"
         aria-labelledby="admin-stock-summary"

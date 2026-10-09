@@ -1,19 +1,19 @@
 /* Customer storefront: restrained blue palette and editorial spacing. */
 .shop {
-  --shop-bg: #fafcfd;
-  --shop-surface: #ffffff;
-  --shop-cream: #123b61;
-  --shop-muted: #58728a;
-  --shop-line: #dce5eb;
-  --shop-input-border: #70899f;
-  --shop-accent: #246b92;
+  --shop-bg: var(--dsu-bg);
+  --shop-surface: var(--dsu-surface);
+  --shop-cream: var(--dsu-ink);
+  --shop-muted: var(--dsu-muted);
+  --shop-line: var(--dsu-line);
+  --shop-input-border: var(--dsu-input);
+  --shop-accent: var(--dsu-accent);
   --shop-gutter: clamp(20px, 4vw, 40px);
   --shop-max-width: 1160px;
   --shop-content-width: min(
     var(--shop-max-width),
     calc(100% - 2 * var(--shop-gutter))
   );
-  --shop-ink: #123b61;
+  --shop-ink: var(--dsu-ink);
   min-height: 100vh;
   background: var(--shop-bg);
   color: var(--shop-cream);
@@ -256,9 +256,6 @@
 .shop-customer-menu-panel button:disabled {
   opacity: 0.5;
   cursor: default;
-}
-.shop-profile#profil {
-  scroll-margin-top: 150px;
 }
 .shop-profile-link[aria-current="page"] {
   color: var(--shop-accent);
@@ -1506,13 +1503,6 @@
   align-items: center;
   font-size: 12px;
   margin-top: 25px;
-}
-.shop-profile {
-  border: 1px solid var(--shop-line);
-  padding: 18px 23px;
-  border-radius: 9px;
-  margin-bottom: 28px;
-  background: #ffffff;
 }
 .shop-profile-page {
   max-width: 960px;

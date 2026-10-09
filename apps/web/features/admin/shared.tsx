@@ -4,6 +4,7 @@ import {
   isValidElement,
   useEffect,
   useId,
+  useRef,
   useState,
   type ReactNode,
   type RefObject,
@@ -215,17 +216,39 @@ export function Heading({
 export function Field({
   label,
   children,
+  hint,
 }: {
   label: string;
   children: ReactNode;
+  hint?: string;
 }) {
   const id = useId();
   return (
     <label className="admin-field">
       <span id={id}>{label}</span>
-      {isValidElement<{ "aria-labelledby"?: string }>(children)
-        ? cloneElement(children, { "aria-labelledby": id })
+      {isValidElement<{
+        "aria-labelledby"?: string;
+        "aria-describedby"?: string;
+      }>(children)
+        ? cloneElement(children, {
+            "aria-labelledby": id,
+            ...(hint
+              ? {
+                  "aria-describedby": [
+                    children.props["aria-describedby"],
+                    `${id}-hint`,
+                  ]
+                    .filter(Boolean)
+                    .join(" "),
+                }
+              : {}),
+          })
         : children}
+      {hint && (
+        <small id={`${id}-hint`} className="admin-field-hint">
+          {hint}
+        </small>
+      )}
     </label>
   );
 }
@@ -247,15 +270,23 @@ export function AdminForm({
   const [pending, setPending] = useState(false),
     [error, setError] = useState("");
   const { notify } = useNotification();
+  const submitting = useRef(false);
+  const errorMessage = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) errorMessage.current?.focus();
+  }, [error]);
   const content = (
     <section className="admin-panel">
       <div className="admin-panel-heading">
         <h2>{title}</h2>
+        <p className="admin-field-hint">Tanda * berarti wajib diisi.</p>
       </div>
       <form
         className="admin-staff-form"
         onSubmit={async (event) => {
           event.preventDefault();
+          if (submitting.current) return;
+          submitting.current = true;
           const values = new FormData(event.currentTarget);
           setPending(true);
           setError("");
@@ -268,10 +299,21 @@ export function AdminForm({
               cause instanceof Error ? cause.message : "Data gagal disimpan.",
             );
           } finally {
+            submitting.current = false;
             setPending(false);
           }
         }}
       >
+        {error && (
+          <p
+            ref={errorMessage}
+            className="portal-form-error"
+            role="alert"
+            tabIndex={-1}
+          >
+            {error} Isian Anda tetap tersimpan; periksa lalu coba lagi.
+          </p>
+        )}
         <fieldset disabled={pending}>
           {children}
           <div className="admin-actions">
@@ -287,7 +329,6 @@ export function AdminForm({
             </button>
           </div>
         </fieldset>
-        {error && <p role="alert">{error}</p>}
       </form>
     </section>
   );
@@ -304,6 +345,7 @@ export function DataTable<T>({
   columns,
   loading,
   error,
+  reload,
   empty,
   filter,
   actions,
@@ -313,6 +355,7 @@ export function DataTable<T>({
   columns: { label: string; value: (row: T) => ReactNode }[];
   loading: boolean;
   error: string;
+  reload: () => void;
   empty: string;
   filter?: ReactNode;
   actions?: (row: T) => ReactNode;
@@ -337,6 +380,7 @@ export function DataTable<T>({
     <section className="admin-panel">
       <div className="admin-panel-heading admin-table-toolbar">
         <label className="admin-search">
+          <span className="admin-field-hint">{searchLabel}</span>
           <input
             aria-label={searchLabel}
             value={query}
@@ -348,28 +392,50 @@ export function DataTable<T>({
           />
         </label>
         {filter}
-        <select
-          aria-label="Urutan tabel"
-          value={sort}
-          onChange={(event) => setSort(event.target.value)}
-        >
-          <option value="newest">Urutan data terbaru</option>
-          <option value="asc">A–Z</option>
-          <option value="desc">Z–A</option>
-        </select>
+        {query && (
+          <button
+            className="shop-button secondary"
+            onClick={() => {
+              setQuery("");
+              setPage(1);
+            }}
+          >
+            Hapus pencarian
+          </button>
+        )}
+        <label className="admin-field">
+          <span className="admin-field-hint">Urutan tabel</span>
+          <select
+            aria-label="Urutan tabel"
+            value={sort}
+            onChange={(event) => setSort(event.target.value)}
+          >
+            <option value="newest">Urutan bawaan</option>
+            <option value="asc">A–Z</option>
+            <option value="desc">Z–A</option>
+          </select>
+        </label>
       </div>
       {loading ? (
         <p className="admin-empty" role="status">
           Memuat data…
         </p>
       ) : error ? (
-        <p className="admin-empty" role="alert">
-          {error}
-        </p>
+        <div className="admin-empty" role="alert">
+          <p>{error}</p>
+          <button className="shop-button" onClick={reload}>
+            Coba lagi
+          </button>
+        </div>
       ) : (
         <>
-          <div className="admin-table-scroll">
-            <table className="admin-table">
+          <div
+            className="admin-table-scroll"
+            role="region"
+            aria-label="Daftar data"
+            tabIndex={0}
+          >
+            <table className="admin-table admin-responsive-table">
               <thead>
                 <tr>
                   {columns.map((column) => (
@@ -390,7 +456,9 @@ export function DataTable<T>({
                   .map((row, index) => (
                     <tr key={index}>
                       {columns.map((column) => (
-                        <td key={column.label}>{column.value(row)}</td>
+                        <td key={column.label} data-label={column.label}>
+                          {column.value(row)}
+                        </td>
                       ))}
                       {actions && (
                         <td className="admin-table-actions">
@@ -408,8 +476,11 @@ export function DataTable<T>({
             </p>
           )}
           <div className="admin-panel-heading admin-table-footer">
-            <span>
-              {filtered.length} data · Halaman {current} dari {pages}
+            <span role="status" aria-live="polite">
+              {filtered.length
+                ? `Menampilkan ${(current - 1) * 10 + 1}–${Math.min(current * 10, filtered.length)} dari ${filtered.length} data`
+                : "0 data"}{" "}
+              · Halaman {current} dari {pages}
             </span>
             <div className="admin-actions">
               <button

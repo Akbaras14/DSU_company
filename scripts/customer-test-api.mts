@@ -8,6 +8,12 @@ const { db } = await import("../apps/api/src/db.js");
 const { app } = await import("../apps/api/src/app.js");
 const { hashPassword } = await import("../apps/api/src/auth.js");
 const fixture = "browser-monstera";
+const staffFixture = "browser-staff-batch";
+await db.readinessApproval.deleteMany({ where: { batchId: staffFixture } });
+await db.observation.deleteMany({ where: { batchId: staffFixture } });
+await db.inventoryTransaction.deleteMany({ where: { batchId: staffFixture } });
+await db.batch.deleteMany({ where: { id: staffFixture } });
+await db.product.deleteMany({ where: { id: staffFixture } });
 const oldUsers = await db.user.findMany({
   where: { email: { endsWith: "@browser.example.test" } },
   select: { id: true },
@@ -101,6 +107,26 @@ await db.observation.create({
       unit: "cm",
       value,
     })),
+  },
+});
+await db.product.create({
+  data: {
+    id: staffFixture,
+    name: "Bibit jambu pengujian",
+    category: "Tanaman buah",
+    description: "Fixture portal petugas pada database pengujian terpisah.",
+    price: 10000,
+    batches: {
+      create: {
+        id: staffFixture,
+        location: "Area pemantauan pengujian",
+        plantedAt: new Date(Date.now() - 20 * 86400000),
+        physical: 8,
+        approved: 0,
+        status: "MONITORING",
+        assignedTo: staff.id,
+      },
+    },
   },
 });
 const server = app.listen(4101, "127.0.0.1", () =>
